@@ -188,7 +188,23 @@ class NMT(object):
                 score: float: the log-likelihood of the target sentence
         """
 
-        return hypotheses
+        src, dec_init_state = self.encode([src_sent])
+        previous_word = '<sos>'
+
+        beam_list = []
+        
+        for _ in range(max_decoding_time_step):
+            
+            scores, dec_init_state = self.decoder(dec_init_state, self.vocab.tgt.word2index[previous_word])
+            
+            # greedy decoding
+            max_score_word = self.vocab.tgt.word2id[scores.index(max(scores))]
+            beam_list.append(max_score_word)
+
+            # update previous word
+            previous_word = max_score_word 
+
+        return beam_list
 
     def evaluate_ppl(self, dev_data: List[Any], batch_size: int=32):
         """
