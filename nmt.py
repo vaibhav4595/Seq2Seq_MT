@@ -46,6 +46,7 @@ import torch
 from collections import namedtuple
 from docopt import docopt
 from nltk.translate.bleu_score import corpus_bleu, sentence_bleu, SmoothingFunction
+from torch.autograd import Variable
 from typing import Any, Dict, List, Set, Tuple, Union
 from tqdm import tqdm
 
@@ -75,6 +76,8 @@ class NMT(object):
         self.decoder = model.DecoderRNN(embed_size=self.embed_size,
                                         hidden_size=self.hidden_size,
                                         output_size=tgt_vocab_size)
+
+        self.criterion = torch.nn.CrossEntropyLoss()
 
     def __call__(self, src_sents: List[List[str]], tgt_sents: List[List[str]]) -> torch.Tensor:
         """
@@ -118,7 +121,7 @@ class NMT(object):
         input_lengths = [len(sent) for sent in numb_src_sents]
 
         # Construct a long tensor (seq_len * batch_size)
-        input_tensor = torch.LongTensor(padded_src_sent).t()
+        input_tensor = Variable(torch.LongTensor(padded_src_sent).t())
 
         # Call encoder
         src_encodings, decoder_init_state = self.encoder(input_tensor, input_lengths)
@@ -142,8 +145,33 @@ class NMT(object):
         """
         # TODO: for now ignoring source encodings, must use for attention
 
+        # Numberize the target sentences
+        numb_tgt_sents = self.vocab.tgt.words2indices(tgt_sents)
 
-        return scores
+        # Pad each sentence to the maximum length
+        max_len = max([len(sent) for sent in numb_tgt_sents])
+        padded_tgt_sent = [sent + [0]*(max_len - len(sent)) for sent in numb_tgt_sents]
+
+        # Get the original sentence lengths
+        input_lengths = [len(sent) for sent in numb_tgt_sents]
+
+        # Construct a long tensor (seq_len * batch_size)
+        input_tensor = Variable(torch.LongTensor(padded_tgt_sent).t())
+        
+        scores = torch.zeros(input_tensor[0].size())
+        last_hidden = decoder_init_state
+        for t in range(1,max_len):
+          # Get output from the decoder
+          output, last_hidden = self.decoder(last_hidden, input_tensor[t-1].unsqueeze(0))
+
+          # Compute scores and add them
+          new_scores = [self.criterion(output[:,i].float(), input_tensor[t,i].unsqueeze(0)) 
+                     * (0 if t >= input_lengths[i] else 1)
+                     for i in range(len(input_tensor[t]))]
+          scores += torch.stack(new_scores)
+
+        # Normalize each score by the length of the sentence, add up, normalize by batch size
+        return (scores / torch.Tensor(input_lengths)).mean()
 
     def beam_search(self, src_sent: List[str], beam_size: int=5, max_decoding_time_step: int=70) -> List[Hypothesis]:
         """
@@ -278,11 +306,11 @@ def train(args: Dict[str, str]):
             # (batch_size)
             loss = -model(src_sents, tgt_sents)
 
-            report_loss += loss
-            cum_loss += loss
+            report_loss += loss.item()
+            cum_loss += loss.item()
 
             # TODO: ensure that this can actually be called
-            loss.backwards()
+            loss.backward()
 
             # Clip gradient norms
             torch.nn.utils.clip_grad_norm(list(model.encoder.parameters()) + list(model.decoder.parameters()), clip_grad)
@@ -418,7 +446,6 @@ def main():
     seed = int(args['--seed'])
     np.random.seed(seed * 13 // 7)
 
-    import pdb; pdb.set_trace()
     if args['train']:
         train(args)
     elif args['decode']:

@@ -15,7 +15,6 @@ class EncoderRNN(nn.Module):
 
     def forward(self, input, input_lengths):
         embedded = self.embedding(input)
-        import pdb; pdb.set_trace()
         packed = torch.nn.utils.rnn.pack_padded_sequence(embedded, input_lengths)
         output, hidden = self.LSTM(packed, None)
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output)
@@ -35,6 +34,6 @@ class DecoderRNN(nn.Module):
 
     def forward(self, hidden, output):
         embedded = self.embedding(output)
-        output, hidden = self.LSTM(output, hidden)
-        output = F.softmax(self.out(hidden))
+        output, hidden = self.LSTM(embedded, hidden)
+        output = F.softmax(self.out(hidden[0]), dim=1)
         return output, hidden
