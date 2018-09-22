@@ -234,10 +234,16 @@ def train(args: Dict[str, str]):
     train_time = begin_time = time.time()
     print('begin Maximum Likelihood training')
 
+    # Define an Adam optimizer
+    optim = torch.optim.Adam(model.parameters(), lr=lr)
+
     while True:
         epoch += 1
 
         for src_sents, tgt_sents in batch_iter(train_data, batch_size=train_batch_size, shuffle=True):
+            # Zero out the gradients
+            optim.zero_grad()
+
             train_iter += 1
 
             batch_size = len(src_sents)
@@ -247,6 +253,15 @@ def train(args: Dict[str, str]):
 
             report_loss += loss
             cum_loss += loss
+
+            # TODO: ensure that this can actually be called
+            loss.backwards()
+
+            # Clip gradient norms
+            torch.nn.utils.clip_grad_norm(model.parameters(), clip_grad)
+
+            # Do a step of the optimizer
+            optim.step()
 
             tgt_words_num_to_predict = sum(len(s[1:]) for s in tgt_sents)  # omitting leading `<s>`
             report_tgt_words += tgt_words_num_to_predict
