@@ -304,7 +304,7 @@ def train(args: Dict[str, str]):
             batch_size = len(src_sents)
 
             # (batch_size)
-            loss = -model(src_sents, tgt_sents)
+            loss = model(src_sents, tgt_sents)
 
             report_loss += loss.item()
             cum_loss += loss.item()

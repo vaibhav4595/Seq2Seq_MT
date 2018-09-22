@@ -29,7 +29,7 @@ python nmt.py \
     --uniform-init 0.1 \
     --dropout 0.2 \
     --clip-grad 5.0 \
-    --lr-decay 0.5 2>${work_dir}/err.log
+    --lr-decay 0.5 
 
 python nmt.py \
     decode \
