@@ -36,18 +36,19 @@ Options:
 """
 
 import math
+import numpy as np
 import pickle
 import sys
 import time
+import torch
+
 from collections import namedtuple
-
-import numpy as np
-from typing import List, Tuple, Dict, Set, Union
 from docopt import docopt
-from tqdm import tqdm
 from nltk.translate.bleu_score import corpus_bleu, sentence_bleu, SmoothingFunction
+from typing import Any, Dict, List, Set, Tuple, Union
+from tqdm import tqdm
 
-from utils import read_corpus, batch_iter
+from utils import batch_iter, read_corpus
 from vocab import Vocab, VocabEntry
 
 
@@ -66,7 +67,7 @@ class NMT(object):
 
         # initialize neural network layers...
 
-    def __call__(self, src_sents: List[List[str]], tgt_sents: List[List[str]]) -> Tensor:
+    def __call__(self, src_sents: List[List[str]], tgt_sents: List[List[str]]) -> torch.Tensor:
         """
         take a mini-batch of source and target sentences, compute the log-likelihood of 
         target sentences.
@@ -85,7 +86,7 @@ class NMT(object):
 
         return scores
 
-    def encode(self, src_sents: List[List[str]]) -> Tuple[Tensor, Any]:
+    def encode(self, src_sents: List[List[str]]) -> Tuple[torch.Tensor, Any]:
         """
         Use a GRU/LSTM to encode source sentences into hidden states
 
@@ -100,7 +101,7 @@ class NMT(object):
 
         return src_encodings, decoder_init_state
 
-    def decode(self, src_encodings: Tensor, decoder_init_state: Any, tgt_sents: List[List[str]]) -> Tensor:
+    def decode(self, src_encodings: torch.Tensor, decoder_init_state: Any, tgt_sents: List[List[str]]) -> torch.Tensor:
         """
         Given source encodings, compute the log-likelihood of predicting the gold-standard target
         sentence tokens
@@ -155,7 +156,7 @@ class NMT(object):
         # e.g., `torch.no_grad()`
 
         for src_sents, tgt_sents in batch_iter(dev_data, batch_size):
-            loss = -model(src_sents, tgt_sents).sum()
+            loss = -self.model(src_sents, tgt_sents).sum()
 
             cum_loss += loss
             tgt_word_num_to_predict = sum(len(s[1:]) for s in tgt_sents)  # omitting the leading `<s>`
@@ -173,15 +174,14 @@ class NMT(object):
         Returns:
             model: the loaded model
         """
-
+        model = torch.load(model_path)
         return model
 
-    def save(self, path: str):
+    def save(self, model_path: str):
         """
         Save current model to file
         """
-
-        raise NotImplementedError()
+        torch.save(self.model, model_path)
 
 
 def compute_corpus_level_bleu_score(references: List[List[str]], hypotheses: List[Hypothesis]) -> float:
@@ -234,10 +234,16 @@ def train(args: Dict[str, str]):
     train_time = begin_time = time.time()
     print('begin Maximum Likelihood training')
 
+    # Define an Adam optimizer
+    optim = torch.optim.Adam(model.parameters(), lr=lr)
+
     while True:
         epoch += 1
 
         for src_sents, tgt_sents in batch_iter(train_data, batch_size=train_batch_size, shuffle=True):
+            # Zero out the gradients
+            optim.zero_grad()
+
             train_iter += 1
 
             batch_size = len(src_sents)
@@ -247,6 +253,15 @@ def train(args: Dict[str, str]):
 
             report_loss += loss
             cum_loss += loss
+
+            # TODO: ensure that this can actually be called
+            loss.backwards()
+
+            # Clip gradient norms
+            torch.nn.utils.clip_grad_norm(model.parameters(), clip_grad)
+
+            # Do a step of the optimizer
+            optim.step()
 
             tgt_words_num_to_predict = sum(len(s[1:]) for s in tgt_sents)  # omitting leading `<s>`
             report_tgt_words += tgt_words_num_to_predict
