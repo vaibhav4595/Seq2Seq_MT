@@ -38,6 +38,7 @@ Options:
 import math
 import model
 import numpy as np
+import os
 import pickle
 import sys
 import time
@@ -194,9 +195,15 @@ class NMT(object):
         beam_list = []
         
         for _ in range(max_decoding_time_step):
+
+            word_indices = self.vocab.tgt.words2indices([previous_word])
+
+            print(word_indices)
             
-            scores, dec_init_state = self.decoder(dec_init_state, self.vocab.tgt.word2index[previous_word])
+            scores, dec_init_state = self.decoder(dec_init_state, word_indices)
             
+            print(scores, dec_init_state)
+
             # greedy decoding
             max_score_word = self.vocab.tgt.word2id[scores.index(max(scores))]
             beam_list.append(max_score_word)
@@ -414,7 +421,7 @@ def train(args: Dict[str, str]):
 
 
 def beam_search(model: NMT, test_data_src: List[List[str]], beam_size: int, max_decoding_time_step: int) -> List[List[Hypothesis]]:
-    was_training = model.training
+    #was_training = model.training
 
     hypotheses = []
     for src_sent in tqdm(test_data_src, desc='Decoding', file=sys.stdout):
@@ -436,7 +443,10 @@ def decode(args: Dict[str, str]):
         test_data_tgt = read_corpus(args['TEST_TARGET_FILE'], source='tgt')
 
     print(f"load model from {args['MODEL_PATH']}", file=sys.stderr)
-    model = NMT.load(args['MODEL_PATH'])
+    if os.path.exists(args['MODEL_PATH']):
+        model = NMT.load(args['MODEL_PATH'])
+    else:
+        model = NMT(256, 256, pickle.load(open('data/vocab.bin', 'rb')))
 
     hypotheses = beam_search(model, test_data_src,
                              beam_size=int(args['--beam-size']),
