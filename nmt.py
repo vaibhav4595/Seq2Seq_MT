@@ -36,6 +36,7 @@ Options:
 """
 
 import math
+import model
 import numpy as np
 import pickle
 import sys
@@ -65,7 +66,15 @@ class NMT(object):
         self.dropout_rate = dropout_rate
         self.vocab = vocab
 
-        # initialize neural network layers...
+        src_vocab_size = len(self.vocab.src.word2id)
+        tgt_vocab_size = len(self.vocab.tgt.word2id)
+
+        self.encoder = model.EncoderRNN(vocab_size=src_vocab_size,
+                                        embed_size=self.embed_size,
+                                        hidden_size=self.hidden_size)
+        self.decoder = model.DecoderRNN(embed_size=self.embed_size,
+                                        hidden_size=self.hidden_size,
+                                        output_size=tgt_vocab_size)
 
     def __call__(self, src_sents: List[List[str]], tgt_sents: List[List[str]]) -> torch.Tensor:
         """
@@ -81,7 +90,7 @@ class NMT(object):
                 log-likelihood of generating the gold-standard target sentence for 
                 each example in the input batch
         """
-        src_encodings, decoder_init_state = self.encode(src_sents, tgt_sents)
+        src_encodings, decoder_init_state = self.encode(src_sents)
         scores = self.decode(src_encodings, decoder_init_state, tgt_sents)
 
         return scores
@@ -98,6 +107,7 @@ class NMT(object):
                 with shape (batch_size, source_sentence_length, encoding_dim), or in orther formats
             decoder_init_state: decoder GRU/LSTM's initial state, computed from source encodings
         """
+        import pdb; pdb.set_trace()
 
         return src_encodings, decoder_init_state
 
@@ -216,6 +226,7 @@ def train(args: Dict[str, str]):
 
     train_batch_size = int(args['--batch-size'])
     clip_grad = float(args['--clip-grad'])
+    lr = float(args['--lr'])
     valid_niter = int(args['--valid-niter'])
     log_every = int(args['--log-every'])
     model_save_path = args['--save-to']
@@ -235,7 +246,7 @@ def train(args: Dict[str, str]):
     print('begin Maximum Likelihood training')
 
     # Define an Adam optimizer
-    optim = torch.optim.Adam(model.parameters(), lr=lr)
+    optim = torch.optim.Adam(list(model.encoder.parameters()) + list(model.decoder.parameters()), lr=lr)
 
     while True:
         epoch += 1
@@ -258,7 +269,7 @@ def train(args: Dict[str, str]):
             loss.backwards()
 
             # Clip gradient norms
-            torch.nn.utils.clip_grad_norm(model.parameters(), clip_grad)
+            torch.nn.utils.clip_grad_norm(list(model.encoder.parameters()) + list(model.decoder.parameters()), clip_grad)
 
             # Do a step of the optimizer
             optim.step()
@@ -391,6 +402,7 @@ def main():
     seed = int(args['--seed'])
     np.random.seed(seed * 13 // 7)
 
+    import pdb; pdb.set_trace()
     if args['train']:
         train(args)
     elif args['decode']:

@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
-import torch.nn.Functional as F
+import torch.nn.functional as F
 
-class EncoderRNN(nn.module):
-
+class EncoderRNN(nn.Module):
     def __init__(self, vocab_size, embed_size, hidden_size):
         super(EncoderRNN, self).__init__()
 
@@ -22,7 +21,6 @@ class EncoderRNN(nn.module):
         return output, hidden
 
 class DecoderRNN(nn.Module):
-
     def __init__(self, embed_size, hidden_size, output_size):
         super(DecoderRNN, self).__init__()
 
