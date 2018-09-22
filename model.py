@@ -15,6 +15,7 @@ class EncoderRNN(nn.Module):
 
     def forward(self, input, input_lengths):
         embedded = self.embedding(input)
+        import pdb; pdb.set_trace()
         packed = torch.nn.utils.rnn.pack_padded_sequence(embedded, input_lengths)
         output, hidden = self.LSTM(packed, None)
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output)

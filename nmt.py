@@ -107,7 +107,21 @@ class NMT(object):
                 with shape (batch_size, source_sentence_length, encoding_dim), or in orther formats
             decoder_init_state: decoder GRU/LSTM's initial state, computed from source encodings
         """
-        import pdb; pdb.set_trace()
+        # Numberize the source sentences
+        numb_src_sents = self.vocab.src.words2indices(src_sents)
+
+        # Pad each sentence to the maximum length
+        max_len = len(numb_src_sents[0])
+        padded_src_sent = [sent + [0]*(max_len - len(sent)) for sent in numb_src_sents]
+
+        # Get the original sentence lengths
+        input_lengths = [len(sent) for sent in numb_src_sents]
+
+        # Construct a long tensor (seq_len * batch_size)
+        input_tensor = torch.LongTensor(padded_src_sent).t()
+
+        # Call encoder
+        src_encodings, decoder_init_state = self.encoder(input_tensor, input_lengths)
 
         return src_encodings, decoder_init_state
 
@@ -126,6 +140,8 @@ class NMT(object):
                 log-likelihood of generating the gold-standard target sentence for 
                 each example in the input batch
         """
+        # TODO: for now ignoring source encodings, must use for attention
+
 
         return scores
 
