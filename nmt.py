@@ -163,7 +163,7 @@ class NMT(object):
         scores = torch.zeros(input_tensor[0].size()).cuda()
         last_hidden = decoder_init_state
 
-        outputs, _ = self.decoder(last_hidden, input_tensor, [len(sent) for sent in numb_tgt_sents])
+        outputs, _ = self.decoder(last_hidden, input_tensor, 1, [len(sent) for sent in numb_tgt_sents])
 
         return self.criterion(outputs[:-1].view(-1, outputs.size(2)), input_tensor[1:].contiguous().view(-1))
 
@@ -221,6 +221,7 @@ class NMT(object):
             for x in hypotheses:
                 src, dec_init_state = self.encode([x.split()])
                 word_indices = self.vocab.tgt.words2indices([x.split()])
+                word_indices = torch.cuda.LongTensor(word_indices)
                 scores, dec_init_state = self.decoder(dec_init_state, word_indices)
                 top_scores = sorted(scores, reverse=True)[:beam_size]                
                 
@@ -258,7 +259,7 @@ class NMT(object):
             src_encodings, decoder_init_state = self.encode(src_sents)
             loss = self.decode(src_encodings, decoder_init_state, tgt_sents)
 
-            cum_loss += loss
+            cum_loss += loss.item()
             tgt_word_num_to_predict = sum(len(s[1:]) for s in tgt_sents)  # omitting the leading `<s>`
             cum_tgt_words += tgt_word_num_to_predict
 
@@ -281,7 +282,7 @@ class NMT(object):
         """
         Save current model to file
         """
-        torch.save(self.model, model_path)
+        torch.save(self, model_path)
 
 
 def compute_corpus_level_bleu_score(references: List[List[str]], hypotheses: List[Hypothesis]) -> float:

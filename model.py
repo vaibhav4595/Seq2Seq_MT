@@ -32,26 +32,32 @@ class DecoderRNN(nn.Module):
         self.LSTM = nn.LSTM(self.embed_size, self.hidden_size) #TODO : for attention add hidden size to input
         self.out = nn.Linear(self.hidden_size, self.output_size)
 
-    def forward(self, hidden, output, output_lengths):
-        # Embed, pack
-        embedded = self.embedding(output)
+    def forward(self, hidden, output, flag=0, output_lengths=None):
+        if flag == 1:        
+            # Embed, pack
+            embedded = self.embedding(output)
 
-	# Sort everything by output length
-        sorted_indices = sorted(range(len(output_lengths)), key=lambda i: output_lengths[i], reverse=True)
-        sorted_lengths = [output_lengths[i] for i in sorted_indices]
-        hidden = (hidden[0][:,sorted_indices], hidden[1][:,sorted_indices])
-        embedded = embedded[:, sorted_indices]
+	    # Sort everything by output length
+            sorted_indices = sorted(range(len(output_lengths)), key=lambda i: output_lengths[i], reverse=True)
+            sorted_lengths = [output_lengths[i] for i in sorted_indices]
+            hidden = (hidden[0][:,sorted_indices], hidden[1][:,sorted_indices])
+            embedded = embedded[:, sorted_indices]
 
-        packed = torch.nn.utils.rnn.pack_padded_sequence(embedded, sorted_lengths)
+            packed = torch.nn.utils.rnn.pack_padded_sequence(embedded, sorted_lengths)
 
-        # Pass packed data through LSTM, and unpack
-        output, hidden = self.LSTM(packed, hidden)
-        output, _ = torch.nn.utils.rnn.pad_packed_sequence(output)
+            # Pass packed data through LSTM, and unpack
+            output, hidden = self.LSTM(packed, hidden)
+            output, _ = torch.nn.utils.rnn.pad_packed_sequence(output)
 
-        # Unsort indices
-        unsort_indices = sorted(range(len(sorted_indices)), key=lambda i: sorted_indices[i]) 
-        output = output[:, unsort_indices]
-        hidden = (hidden[0][:,sorted_indices], hidden[1][:,sorted_indices])
+            # Unsort indices
+            unsort_indices = sorted(range(len(sorted_indices)), key=lambda i: sorted_indices[i]) 
+            output = output[:, unsort_indices]
+            hidden = (hidden[0][:,sorted_indices], hidden[1][:,sorted_indices])
 	
-        output = F.softmax(self.out(output), dim=2)
-        return output, hidden
+            output = F.softmax(self.out(output), dim=2)
+            return output, hidden
+        else:
+            embedded = self.embedding(output)
+            output, hidden = self.LSTM(embedded, hidden)
+            output = F.log_softmax(self.out(hidden[0]), dim=1)
+            return output, hidden

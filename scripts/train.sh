@@ -15,24 +15,24 @@ echo save re
 
 # comment below to test the decoder
 
-python nmt.py \
-    train \
-    --cuda \
-    --vocab ${vocab} \
-    --train-src ${train_src} \
-    --train-tgt ${train_tgt} \
-    --dev-src ${dev_src} \
-    --dev-tgt ${dev_tgt} \
-    --save-to ${work_dir}/model.bin \
-    --valid-niter 100 \
-    --batch-size 64 \
-    --hidden-size 256 \
-    --embed-size 256 \
-    --uniform-init 0.1 \
-    --dropout 0.2 \
-    --clip-grad 5.0 \
-    --lr-decay 0.5 
-
+#python nmt.py \
+#    train \
+#    --cuda \
+#    --vocab ${vocab} \
+#    --train-src ${train_src} \
+#    --train-tgt ${train_tgt} \
+#    --dev-src ${dev_src} \
+#    --dev-tgt ${dev_tgt} \
+#    --save-to ${work_dir}/model.bin \
+#    --valid-niter 100 \
+#    --batch-size 64 \
+#    --hidden-size 256 \
+#    --embed-size 256 \
+#    --uniform-init 0.1 \
+#    --dropout 0.2 \
+#    --clip-grad 5.0 \
+#    --lr-decay 0.5 
+#
 python nmt.py \
     decode \
     --cuda \
