@@ -184,13 +184,12 @@ class VocabEntry(object):
           token_set.add(next_token)
         
           # Remove from pairs
-          token_set.remove(next_token)
+          token_pairs.remove(next_token)
 
           # Add to pairs
           for t in tokens:
             token_pairs.add(t+next_token)
             token_pairs.add(next_token+t)
-
 
         print(f'number of token types: {len(tokens)}, number of token types w/ frequency >= {freq_cutoff}: {len(tokens)}')
 
