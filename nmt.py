@@ -218,7 +218,7 @@ class NMT(object):
         for t in range(max_decoding_time_step):
             for x in hypotheses:
                 src, dec_init_state = self.encode([x.split()])
-                word_indices = self.vocab.tgt.word2indices([x.split()])
+                word_indices = self.vocab.tgt.words2indices([x.split()])
                 scores, dec_init_state = self.decoder(dec_init_state, word_indices)
                 top_scores = sorted(scores, reverse=True)[:beam_size]                
                 
