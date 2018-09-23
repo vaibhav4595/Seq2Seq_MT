@@ -77,9 +77,8 @@ class NMT(object):
         self.decoder = model.DecoderRNN(embed_size=self.embed_size,
                                         hidden_size=self.hidden_size,
                                         output_size=tgt_vocab_size)
-
         self.encoder.cuda()
-        self.decoder.cuda()                                
+        self.decoder.cuda() 
 
         self.criterion = torch.nn.CrossEntropyLoss()
 
@@ -160,13 +159,14 @@ class NMT(object):
         input_lengths = [len(sent) for sent in numb_tgt_sents]
 
         # Construct a long tensor (seq_len * batch_size)
-        input_tensor = Variable(torch.LongTensor(padded_tgt_sent).t()).cuda()
+        input_tensor = Variable(torch.LongTensor(padded_tgt_sent).t())
         
-        scores = torch.zeros(input_tensor[0].size()).cuda()
+        scores = torch.zeros(input_tensor[0].size())
         last_hidden = decoder_init_state
         for t in range(1,max_len):
           # Get output from the decoder
           output, last_hidden = self.decoder(last_hidden, input_tensor[t-1].unsqueeze(0))
+          # output = output.cuda()
 
           # Compute scores and add them
           new_scores = [self.criterion(output[:,i].float(), input_tensor[t,i].unsqueeze(0)) 
@@ -175,7 +175,9 @@ class NMT(object):
           scores += torch.stack(new_scores)
 
         # Normalize each score by the length of the sentence, add up, normalize by batch size
-        return (scores / torch.Tensor(input_lengths)).mean()
+        # normalizers = torch.FloatTensor(input_lengths)
+        # normalizers = normalizers.cuda()
+        return (scores / torch.Tensor(input_lengths).mean()) # / normalizers.mean())
 
     def beam_search(self, src_sent: List[str], beam_size: int=5, max_decoding_time_step: int=70) -> List[Hypothesis]:
         """
@@ -330,6 +332,7 @@ def train(args: Dict[str, str]):
                 hidden_size=int(args['--hidden-size']),
                 dropout_rate=float(args['--dropout']),
                 vocab=vocab)
+    # model.cuda() or model = model.cuda() or model = NMT().cuda() # error: model has no attribute cuda
 
     num_trial = 0
     train_iter = patience = cum_loss = report_loss = cumulative_tgt_words = report_tgt_words = 0
@@ -354,7 +357,7 @@ def train(args: Dict[str, str]):
 
             # (batch_size)
             loss = model(src_sents, tgt_sents)
-
+            print(loss.size())
             report_loss += loss.item()
             cum_loss += loss.item()
 
