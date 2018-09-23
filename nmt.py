@@ -401,7 +401,7 @@ def train(args: Dict[str, str]):
             if train_iter % valid_niter == 0:
                 print('epoch %d, iter %d, cum. loss %.2f, cum. ppl %.2f cum. examples %d' % (epoch, train_iter,
                                                                                          cum_loss / cumulative_examples,
-                                                                                         np.exp(cum_loss / cumulative_tgt_words),
+                                                                                         np.exp(cum_loss/ cumulative_tgt_words),
                                                                                          cumulative_examples), file=sys.stderr)
 
                 cum_loss = cumulative_examples = cumulative_tgt_words = 0.
