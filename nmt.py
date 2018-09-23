@@ -229,7 +229,7 @@ class NMT(object):
        	    # Prune the hypotheses for the next step
             hypotheses = sorted(hypotheses.items(), key=lambda x: -x[1])[:beam_size] 
 
-        return namedtuple('Hypothesis', hypotheses.keys())(**hypotheses)
+        return [Hypothesis(x, hypotheses[x]) for x in hypotheses] # namedtuple('Hypothesis', hypotheses.keys())(**hypotheses) 
         
 
     def evaluate_ppl(self, dev_data: List[Any], batch_size: int=32):
