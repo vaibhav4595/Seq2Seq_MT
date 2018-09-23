@@ -223,6 +223,7 @@ class NMT(object):
                 word_indices = self.vocab.tgt.words2indices([x.split()])
                 word_indices = torch.cuda.LongTensor(word_indices)
                 scores, dec_init_state = self.decoder(dec_init_state, word_indices)
+                scores = torch.from_numpy(scores).tolist()
                 top_scores = sorted(scores, reverse=True)[:beam_size]                
                 
                 for i in top_scores:
