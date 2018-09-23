@@ -212,6 +212,7 @@ class VocabEntry(object):
         for token in top_k_tokens:
             vocab_entry.add(token)
 
+        import pdb; pdb.set_trace()
         return vocab_entry
 
     @staticmethod
@@ -281,7 +282,6 @@ class VocabEntry(object):
         for token in tokens:
             vocab_entry.add(token)
 
-        import pdb; pdb.set_trace()
         return vocab_entry
 
 
