@@ -223,7 +223,11 @@ class NMT(object):
         for t in range(max_decoding_time_step):
             current = {}
             for x in hypotheses:
-                word_indices = self.vocab.tgt.words2indices([[x.split()[-1]]])
+                previous_word = x.split()[-1]
+                if previous_word == 'eos':
+                    current[x] = hypotheses[x]
+                    break
+                word_indices = self.vocab.tgt.words2indices([[previous_word]])
                 word_indices = torch.cuda.LongTensor(word_indices)
                 scores, dec_init_state = self.decoder(dec_init_state, word_indices)
                 top_scores, score_indices = torch.topk(scores, k=beam_size, dim=2)
