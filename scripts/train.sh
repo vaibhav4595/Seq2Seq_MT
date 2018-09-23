@@ -24,7 +24,7 @@ python nmt.py \
     --dev-src ${dev_src} \
     --dev-tgt ${dev_tgt} \
     --save-to ${work_dir}/model.bin \
-    --valid-niter 2400 \
+    --valid-niter 100 \
     --batch-size 64 \
     --hidden-size 256 \
     --embed-size 256 \
