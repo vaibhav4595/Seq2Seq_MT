@@ -159,7 +159,7 @@ class NMT(object):
         input_lengths = [len(sent) for sent in numb_tgt_sents]
 
         # Construct a long tensor (seq_len * batch_size)
-        input_tensor = Variable(torch.LongTensor(padded_tgt_sent).t())
+        input_tensor = Variable(torch.cuda.LongTensor(padded_tgt_sent).t())
         
         scores = torch.zeros(input_tensor[0].size())
         last_hidden = decoder_init_state
