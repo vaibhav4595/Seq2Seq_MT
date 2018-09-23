@@ -210,18 +210,8 @@ class NMT(object):
 
     #     # return beam_list
 
-<<<<<<< HEAD
     #     # Beam search decoding
     #     hypotheses = {['sos']:0}
-=======
-        # Beam search decoding
-	
-	# Hypothesis = namedtuple('Hypothesis', ['value', 'score'])
-	# This is the return format
-	# TODO: Add it in the function: finally convert the dictionary into this tuple
-	
-        hypotheses = {['sos']:0}
->>>>>>> 825b688238ecdcb69efedf77a0eb3218dab80696
 
     #     for t in range(max_decoding_time_step):
 
