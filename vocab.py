@@ -133,6 +133,77 @@ class VocabEntry(object):
 
         return vocab_entry
 
+    @staticmethod
+    def from_corpus_bpe(corpus, size, freq_cutoff=2):
+        vocab_entry = VocabEntry(vocab_type='bpe')
+
+        # Create a count of all tokens
+        token_freq = Counter()
+        for sent in corpus:
+          for word in sent:
+            # Now we have to consider all sets of letter counts from 1 to the length of the sentence
+            for i in range(1, len(word)):
+              # Iterate over the possible sentence starts
+              for s in range(0, len(word)-i+1):
+                # Update the freq of the token
+                token_freq[word[s:s+i]] += 1
+        
+        print("Built vocab frequencies")
+
+        # Initialize the tokens to be all unigrams
+        tokens = sorted([w for w in token_freq.keys() if len(w) == 1], key=token_freq.get, reverse=True)
+        token_set = set(tokens)
+
+        # Keep token pairs
+        token_pairs = set([t1+t2 for t1 in tokens for t2 in tokens])
+
+        # Keep unselected words
+        sorted_tokens = [w for w in sorted(token_freq.keys(), key=token_freq.get, reverse=True) if w not in token_set][:size]
+
+        # Iteratively, expand by adding the combination of tokens that is the most frequent. 
+        # Repeat this until we hit the desired vocab size, or below the frequency.
+        while len(tokens) < size:
+          if len(tokens) % 500 == 0:
+            print("Vocabulary size %d reached" % len(tokens))
+
+          # Find the token with the maximum frequency
+          i = 0
+          while sorted_tokens[i] not in token_pairs:
+            i += 1
+          next_token = sorted_tokens[i]
+
+          # Remove new token from the list
+          sorted_tokens = sorted_tokens[:i] + sorted_tokens[i+1:]
+
+          # Break if couldn't find sufficient token
+          if next_token is None or token_freq[next_token] < freq_cutoff:
+            break
+        
+          # Otherwise add the token
+          tokens.append(next_token)
+          token_set.add(next_token)
+        
+          # Remove from pairs
+          token_set.remove(next_token)
+
+          # Add to pairs
+          for t in tokens:
+            token_pairs.add(t+next_token)
+            token_pairs.add(next_token+t)
+
+
+        print(f'number of token types: {len(tokens)}, number of token types w/ frequency >= {freq_cutoff}: {len(tokens)}')
+
+        # Add space to vocab
+        vocab_entry.add(' ')
+
+        # Add each of the tokens to the vocab
+        for token in tokens:
+            vocab_entry.add(token)
+
+        import pdb; pdb.set_trace()
+        return vocab_entry
+
 
 class Vocab(object):
     def __init__(self, src_sents, tgt_sents, vocab_size, freq_cutoff, vocab_type='word'):
@@ -143,12 +214,16 @@ class Vocab(object):
           self.src = VocabEntry.from_corpus(src_sents, vocab_size, freq_cutoff)
         elif vocab_type == 'char':
           self.src = VocabEntry.from_corpus_char(src_sents, vocab_size, freq_cutoff)
+        elif vocab_type == 'bpe':
+          self.src = VocabEntry.from_corpus_bpe(src_sents, vocab_size, freq_cutoff)
 
         print('initialize target vocabulary ..')
         if vocab_type == 'word':
           self.tgt = VocabEntry.from_corpus(tgt_sents, vocab_size, freq_cutoff)
         elif vocab_type == 'char':
           self.tgt = VocabEntry.from_corpus_char(tgt_sents, vocab_size, freq_cutoff)
+        elif vocab_type == 'bpe':
+          self.tgt = VocabEntry.from_corpus_bpe(tgt_sents, vocab_size, freq_cutoff)
 
     def __repr__(self):
         return 'Vocab(source %d words, target %d words)' % (len(self.src), len(self.tgt))
