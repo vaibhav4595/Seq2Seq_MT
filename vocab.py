@@ -70,6 +70,18 @@ class VocabEntry(object):
         elif self.vocab_type == 'bpe':
           return self.bpe2indices(sents)
 
+    def denumberize(self, ids):
+      if type(ids[0]) == list:
+        if self.vocab_type == 'word':
+          return [' '.join([self.id2word[w] for w in sent]) for sent in ids]
+        else:
+          return [''.join([self.id2word[w] for w in sent]) for sent in ids]
+      else:
+        if self.vocab_type == 'word':
+          return ' '.join([self.id2word[w] for w in ids])
+        else:
+          return ''.join([self.id2word[w] for w in ids])
+
     def words2indices(self, sents):
         if type(sents[0]) == list:
             return [[self[w] for w in s] for s in sents]
@@ -91,6 +103,75 @@ class VocabEntry(object):
             sent = ' '.join(sent.split()[:-1])
 
           indices += [self.word2id[c] for c in sent]
+
+          if eos_end:
+            indices.append(self.word2id[' '])
+            indices.append(self.word2id['</s>'])
+
+          return indices
+
+        if type(sents[0]) == list:
+            return [__sent2indices(' '.join(s)) for s in sents]
+        else:
+            return __sent2indices(' '.join(sents))
+
+    def bpe2indices(self, sents):
+        def __word2indices(word):
+          # Split into characters
+          tokens = list(word)
+
+          # Keep looking for most frequent pair
+          while True:
+            tok = ''
+            ind = len(self.word2id)
+            for i in range(len(tokens)-1):
+              new_tok = ''.join(tokens[i:i+2])
+              if self.word2id.get(new_tok, len(self.word2id)) < ind:
+                tok = new_tok
+                ind = self.word2id[new_tok]
+
+            # If couldn't find a token, break
+            if tok == '':
+              break
+
+            # Replace all instances of the two tokens by the new token
+            new_tokens = []
+            skip_next = False
+            for i in range(len(tokens)):
+              if skip_next:
+                skip_next = False
+                continue
+
+              if ''.join(tokens[i:i+2]) == tok:
+                new_tokens.append(tok)
+                skip_next = True
+              else:
+                new_tokens.append(tokens[i])
+
+            tokens = new_tokens
+
+          # Get word ids
+          return [self.word2id[t] for t in tokens]
+                
+        def __sent2indices(sent):
+          indices = []
+          # Check whether the sentence starts in SOS
+          if sent.startswith('<s>'):
+            indices.append(self.word2id['<s>'])
+            indices.append(self.word2id[' '])
+            sent = ' '.join(sent.split()[1:])
+
+          # Check whether the sentence ends in EOS
+          eos_end = sent.endswith("</s>")
+          if eos_end:
+            sent = ' '.join(sent.split()[:-1])
+
+          # Split into words and iterate
+          for i,word in enumerate(sent.split()):
+            indices += __word2indices(word)
+
+            if i != len(sent.split()) - 1:
+              indices.append(self.word2id[' '])
 
           if eos_end:
             indices.append(self.word2id[' '])
@@ -131,6 +212,7 @@ class VocabEntry(object):
         for token in top_k_tokens:
             vocab_entry.add(token)
 
+        import pdb; pdb.set_trace()
         return vocab_entry
 
     @staticmethod
@@ -200,7 +282,6 @@ class VocabEntry(object):
         for token in tokens:
             vocab_entry.add(token)
 
-        import pdb; pdb.set_trace()
         return vocab_entry
 
 
