@@ -156,28 +156,30 @@ class NMT(object):
         padded_tgt_sent = [sent + [0]*(max_len - len(sent)) for sent in numb_tgt_sents]
 
         # Get the original sentence lengths
-        input_lengths = [len(sent) for sent in numb_tgt_sents]
+        input_lengths = torch.cuda.FloatTensor([len(sent) for sent in numb_tgt_sents])
 
         # Construct a long tensor (seq_len * batch_size)
         input_tensor = Variable(torch.cuda.LongTensor(padded_tgt_sent).t())
-        
         scores = torch.zeros(input_tensor[0].size()).cuda()
         last_hidden = decoder_init_state
-        for t in range(1,max_len):
-          # Get output from the decoder
-          output, last_hidden = self.decoder(last_hidden, input_tensor[t-1].unsqueeze(0))
-          # output = output.cuda()
 
-          # Compute scores and add them
-          new_scores = [self.criterion(output[:,i].float(), input_tensor[t,i].unsqueeze(0)) 
-                     * (0 if t >= input_lengths[i] else 1)
-                     for i in range(len(input_tensor[t]))]
-          scores += torch.stack(new_scores)
+        outputs, _ = self.decoder(last_hidden, input_tensor, [len(sent) for sent in numb_tgt_sents])
 
-        # Normalize each score by the length of the sentence, add up, normalize by batch size
-        # normalizers = torch.FloatTensor(input_lengths)
-        # normalizers = normalizers.cuda()
-        return (scores / torch.cuda.FloatTensor(input_lengths).mean()) # / normalizers.mean())
+        return self.criterion(outputs[:-1].view(-1, outputs.size(2)), input_tensor[1:].contiguous().view(-1))
+
+        #import pdb; pdb.set_trace()
+        #for t in range(1,max_len):
+        #  # Get output from the decoder
+        #  output, last_hidden = self.decoder(last_hidden, input_tensor[t-1].unsqueeze(0))
+        #  import pdb; pdb.set_trace()
+
+        #  # Compute scores and add them
+        #  scores += self.criterion(output.squeeze(), input_tensor[t]) * (input_lengths > t).float()
+
+        ## Normalize each score by the length of the sentence, add up, normalize by batch size
+        ## normalizers = torch.FloatTensor(input_lengths)
+        ## normalizers = normalizers.cuda()
+        #return (scores / input_lengths).mean() # / normalizers.mean())
 
     def beam_search(self, src_sent: List[str], beam_size: int=5, max_decoding_time_step: int=70) -> List[Hypothesis]:
         """
@@ -347,18 +349,22 @@ def train(args: Dict[str, str]):
             batch_size = len(src_sents)
 
             # (batch_size)
-            loss = model(src_sents, tgt_sents).mean()
+            start_time = time.time()
+            loss = model(src_sents, tgt_sents)
+            #print("forward", time.time() - start_time)
             report_loss += loss.item()
             cum_loss += loss.item()
 
             # TODO: ensure that this can actually be called
             loss.backward()
+            #print("backwards", time.time() - start_time)
 
             # Clip gradient norms
             torch.nn.utils.clip_grad_norm(list(model.encoder.parameters()) + list(model.decoder.parameters()), clip_grad)
 
             # Do a step of the optimizer
             optim.step()
+            #print("step", time.time() - start_time)
 
             tgt_words_num_to_predict = sum(len(s[1:]) for s in tgt_sents)  # omitting leading `<s>`
             report_tgt_words += tgt_words_num_to_predict
