@@ -78,6 +78,9 @@ class NMT(object):
                                         hidden_size=self.hidden_size,
                                         output_size=tgt_vocab_size)
 
+        self.encoder.cuda()
+        self.decoder.cuda()                                
+
         self.criterion = torch.nn.CrossEntropyLoss()
 
     def __call__(self, src_sents: List[List[str]], tgt_sents: List[List[str]]) -> torch.Tensor:
@@ -122,7 +125,7 @@ class NMT(object):
         input_lengths = [len(sent) for sent in numb_src_sents]
 
         # Construct a long tensor (seq_len * batch_size)
-        input_tensor = Variable(torch.LongTensor(padded_src_sent).t())
+        input_tensor = Variable(torch.LongTensor(padded_src_sent).t()).cuda()
 
         # Call encoder
         src_encodings, decoder_init_state = self.encoder(input_tensor, input_lengths)
@@ -157,7 +160,7 @@ class NMT(object):
         input_lengths = [len(sent) for sent in numb_tgt_sents]
 
         # Construct a long tensor (seq_len * batch_size)
-        input_tensor = Variable(torch.LongTensor(padded_tgt_sent).t())
+        input_tensor = Variable(torch.LongTensor(padded_tgt_sent).t()).cuda()
         
         scores = torch.zeros(input_tensor[0].size())
         last_hidden = decoder_init_state
