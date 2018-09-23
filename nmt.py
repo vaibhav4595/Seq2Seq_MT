@@ -191,48 +191,49 @@ class NMT(object):
 
         # Greedy Decoding for testing
 
-        src, dec_init_state = self.encode([src_sent])
-        previous_word = '<sos>'
+    #     src, dec_init_state = self.encode([src_sent])
+    #     previous_word = '<sos>'
 
-        greedy_ouput = []
+    #     greedy_ouput = []
         
-        for _ in range(max_decoding_time_step):
+    #     for _ in range(max_decoding_time_step):
 
-            word_indices = self.vocab.tgt.word2indices([previous_word])            
-            scores, dec_init_state = self.decoder(dec_init_state, word_indices)
+    #         word_indices = self.vocab.tgt.word2indices([previous_word])            
+    #         scores, dec_init_state = self.decoder(dec_init_state, word_indices)
 
-            # greedy decoding
-            max_score_word = self.vocab.tgt.word2id[scores.index(max(scores))]
-            beam_list.append(max_score_word)
+    #         # greedy decoding
+    #         max_score_word = self.vocab.tgt.word2id[scores.index(max(scores))]
+    #         beam_list.append(max_score_word)
 
-            # update previous word
-            previous_word = max_score_word 
+    #         # update previous word
+    #         previous_word = max_score_word 
 
-        # return beam_list
+    #     # return beam_list
 
-        # Beam search decoding
-        hypotheses = {['sos']:0}
+    #     # Beam search decoding
+    #     hypotheses = {['sos']:0}
 
-        for t in range(max_decoding_time_step):
+    #     for t in range(max_decoding_time_step):
 
-            for x in hypotheses:
+    #         for x in hypotheses:
 
-                src, dec_init_state = self.encode([x])
+    #             src, dec_init_state = self.encode([x])
 
-		word_indices = self.vocab.tgt.word2indices(x)
-            	scores, dec_init_state = self.decoder(dec_init_state, word_indices)
+	# 	word_indices = self.vocab.tgt.word2indices(x)
+    #         	scores, dec_init_state = self.decoder(dec_init_state, word_indices)
 
-                top_scores = sorted(scores, reverse=True)[:beam_size]
+    #             top_scores = sorted(scores, reverse=True)[:beam_size]
                 
-                for i in top_scores:
-                    word = self.vocab.tgt.id2word[scores.index[i]]
-                    hypotheses[x + word] = hypotheses[x] + i  
+    #             for i in top_scores:
+    #                 word = self.vocab.tgt.id2word[scores.index[i]]
+    #                 hypotheses[x + word] = hypotheses[x] + i  
         	
-       	      # Prune the hypotheses for the next step
-              sorted_h = sorted(hypotheses.items(), key=operator.itemgetter(0))
-              hypotheses = take(beam_size, d.items())
+    #    	      # Prune the hypotheses for the next step
+    #           sorted_h = sorted(hypotheses.items(), key=operator.itemgetter(0))
+    #           hypotheses = take(beam_size, d.items())
 
-	return hypotheses 
+	# return hypotheses
+    pass 
         
 
     def evaluate_ppl(self, dev_data: List[Any], batch_size: int=32):
