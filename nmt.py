@@ -217,21 +217,22 @@ class NMT(object):
 
         # Beam search decoding
         hypotheses = {'sos': 0}  # string vs the log likelihood
+       
         for t in range(max_decoding_time_step):
+            current = {}
             for x in hypotheses:
                 src, dec_init_state = self.encode([x.split()])
                 word_indices = self.vocab.tgt.words2indices([x.split()])
                 word_indices = torch.cuda.LongTensor(word_indices)
                 scores, dec_init_state = self.decoder(dec_init_state, word_indices)
-                scores = torch.from_numpy(scores).tolist()
+                scores = scores.data.cpu().numpy().tolist()[0][0]
                 top_scores = sorted(scores, reverse=True)[:beam_size]                
-                
                 for i in top_scores:
-                    word = self.vocab.tgt.id2word[scores.index[i]]
-                    hypotheses[x + " " + word] = hypotheses[x] + i
+                    word = self.vocab.tgt.id2word[scores.index(i)]
+                    current[x + " " + word] = hypotheses[x] + i
 
        	    # Prune the hypotheses for the next step
-            hypotheses = sorted(hypotheses.items(), key=lambda x: -x[1])[:beam_size] 
+            hypotheses = dict(sorted(current.items(), key=lambda x: -x[1])[:beam_size]) 
 
         return [Hypothesis(x, hypotheses[x]) for x in hypotheses] # namedtuple('Hypothesis', hypotheses.keys())(**hypotheses) 
         

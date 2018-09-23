@@ -59,5 +59,5 @@ class DecoderRNN(nn.Module):
         else:
             embedded = self.embedding(output)
             output, hidden = self.LSTM(embedded, hidden)
-            output = F.log_softmax(self.out(hidden[0]), dim=1)
+            output = F.log_softmax(self.out(hidden[0]), dim=2)
             return output, hidden
