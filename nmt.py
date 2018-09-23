@@ -194,7 +194,7 @@ class NMT(object):
                 score: float: the log-likelihood of the target sentence
         """
 
-        # Greedy Decoding for testing
+    # Greedy Decoding for testing
 
     #     src, dec_init_state = self.encode([src_sent])
     #     previous_word = '<sos>'
@@ -216,16 +216,14 @@ class NMT(object):
     #     # return beam_list
 
     #     # Beam search decoding
-    #     hypotheses = {['sos']:0}
+    #     hypotheses = {'sos': 0}  # string vs the log likelihood
 
     #     for t in range(max_decoding_time_step):
 
     #         for x in hypotheses:
-
     #             src, dec_init_state = self.encode([x])
-
-	# 	word_indices = self.vocab.tgt.word2indices(x)
-    #         	scores, dec_init_state = self.decoder(dec_init_state, word_indices)
+	# 	          word_indices = self.vocab.tgt.word2indices(x)
+    #         	  scores, dec_init_state = self.decoder(dec_init_state, word_indices)
 
     #             top_scores = sorted(scores, reverse=True)[:beam_size]
                 
@@ -233,11 +231,10 @@ class NMT(object):
     #                 word = self.vocab.tgt.id2word[scores.index[i]]
     #                 hypotheses[x + word] = hypotheses[x] + i  
         	
-    #    	      # Prune the hypotheses for the next step
-    #           sorted_h = sorted(hypotheses.items(), key=operator.itemgetter(0))
-    #           hypotheses = take(beam_size, d.items())
+    #    	  # Prune the hypotheses for the next step
+    #         hypotheses = sorted(hypotheses.items(), key=lambda x: -x[1])[:beam_size] 
 
-	# return hypotheses
+	# return namedtuple('Hypothesis', hypotheses.keys())(**hypotheses)
     pass 
         
 
