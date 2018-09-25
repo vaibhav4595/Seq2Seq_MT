@@ -264,7 +264,7 @@ class NMT(object):
         for src_sents, tgt_sents in batch_iter(dev_data, batch_size):
             #loss = -self.model(src_sents, tgt_sents).sum()
             src_encodings, decoder_init_state = self.encode(src_sents)
-            loss = self.decode(src_encodings, decoder_init_state, tgt_sents)
+            loss = self.decode(src_encodings, decoder_init_state, tgt_sents)[1]
 
             cum_loss += loss.item()
             tgt_word_num_to_predict = sum(len(s[1:]) for s in tgt_sents)  # omitting the leading `<s>`
