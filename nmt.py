@@ -198,7 +198,7 @@ class NMT(object):
 
         # Greedy Decoding for testing
 
-        src, dec_init_state = self.encode([src_sent])
+        src, last_hidden_state = self.encode([src_sent])
         # previous_word = '<sos>'
 
         # greedy_ouput = []
@@ -219,25 +219,36 @@ class NMT(object):
         hypotheses = {'<s>': 0}  # string vs the log likelihood
         start_time = time.time() 
         for t in range(max_decoding_time_step):
-            current = {}
-            for x in hypotheses:
-                previous_word = x.split()[-1]
+            new_hypotheses = {}
+            for hyp,score in hypotheses.items():
+                previous_word = hyp.split()[-1]
                 if previous_word == '</s>':
-                    current[x] = hypotheses[x]
-                    break
-                word_indices = self.vocab.tgt.words2indices([[previous_word]])
-                word_indices = torch.cuda.LongTensor(word_indices)
-                scores, dec_init_state = self.decoder(dec_init_state, word_indices)
-                top_scores, score_indices = torch.topk(scores, k=beam_size, dim=2)
-                top_scores = top_scores[0][0].data.cpu().numpy().tolist()
-                score_indices = score_indices[0][0].data.cpu().numpy().tolist()
+                    new_hypotheses[hyp] = score
+                    continue
 
-                for i, j in zip(top_scores, score_indices):
-                    word = self.vocab.tgt.id2word[j]
-                    current[x + " " + word] = hypotheses[x] + i
+                # Create a tensor for the last word
+                last_word = torch.cuda.LongTensor(self.vocab.tgt.words2indices([[previous_word]]))
+
+                # Pass through the decoder
+                scores, last_hidden_state = self.decoder(last_hidden_state, last_word)
+                top_scores, score_indices = torch.topk(scores, k=beam_size+1, dim=2)
+
+                # If we get UNK, do one more step. Otherwise skip the last step.
+                seen_unk = False
+                for i in range(beam_size+1):
+                  if i == beam_size and not seen_unk:
+                    continue
+
+                  word_index = score_indices[0,0,i].item()
+                  if word_index == self.vocab.tgt.unk_id:
+                    seen_unk = True
+                    continue
+
+                  word = self.vocab.tgt.id2word[word_index]
+                  new_hypotheses[hyp + " " + word] = score + top_scores[0,0,i].item()
 
        	    # Prune the hypotheses for the next step
-            hypotheses = dict(sorted(current.items(), key=lambda x: -x[1])[:beam_size])
+            hypotheses = dict(sorted(new_hypotheses.items(), key=lambda t: t[1]/len(t[0].split()), reverse=True)[:beam_size])
         #print(" %s --- beam" %(time.time() - start_time))
         return [Hypothesis(x, hypotheses[x]) for x in hypotheses] # namedtuple('Hypothesis', hypotheses.keys())(**hypotheses) 
         
@@ -264,7 +275,7 @@ class NMT(object):
         for src_sents, tgt_sents in batch_iter(dev_data, batch_size):
             #loss = -self.model(src_sents, tgt_sents).sum()
             src_encodings, decoder_init_state = self.encode(src_sents)
-            loss = self.decode(src_encodings, decoder_init_state, tgt_sents)
+            loss = self.decode(src_encodings, decoder_init_state, tgt_sents)[1]
 
             cum_loss += loss.item()
             tgt_word_num_to_predict = sum(len(s[1:]) for s in tgt_sents)  # omitting the leading `<s>`
