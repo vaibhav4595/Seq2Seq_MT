@@ -495,7 +495,7 @@ def decode(args: Dict[str, str]):
     with open(args['OUTPUT_FILE'], 'w') as f:
         for src_sent, hyps in zip(test_data_src, hypotheses):
             top_hyp = hyps[0]
-            hyp_sent = ' '.join(top_hyp.value)
+            hyp_sent = ' '.join(top_hyp.value.split()[1:-1])
             f.write(hyp_sent + '\n')
 
 
