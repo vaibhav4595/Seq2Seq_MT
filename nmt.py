@@ -226,13 +226,13 @@ class NMT(object):
         # return [Hypothesis(x, hypotheses[x]) for x in greedy_ouput]
 
         def to_cpu(h):
-          return [e.cpu() for e in h]
+          return [e.cpu().detach() for e in h]
 
         def to_cuda(h):
-          return [e.cuda() for e in h]
+          return [e.cuda().detach() for e in h]
 
         # Beam search decoding
-        hypotheses = {'<s>': (0, to_cpu(last_hidden_state))}  # string vs the log likelihood
+        hypotheses = {'<s>': (0, to_cpu(dec_init_state))}  # string vs the log likelihood
         start_time = time.time() 
         for t in range(max_decoding_time_step):
             new_hypotheses = {}
@@ -247,6 +247,7 @@ class NMT(object):
 
                 # Pass through the decoder
                 scores, new_hidden = self.decoder(to_cuda(hidden), last_word)
+                new_hidden = to_cpu(new_hidden)
                 scores = F.log_softmax(scores, dim=2)
                 top_scores, score_indices = torch.topk(scores, k=beam_size+1, dim=2)
 
@@ -263,12 +264,12 @@ class NMT(object):
 
                   word = self.vocab.tgt.id2word[word_index]
                   new_score = score + top_scores[0,0,i].item()
-                  new_hypotheses[hyp + " " + word] = (new_score, to_cpu(new_hidden))
+                  new_hypotheses[hyp + " " + word] = (new_score, new_hidden)
 
        	    # Prune the hypotheses for the next step
             hypotheses = dict(sorted(new_hypotheses.items(), key=lambda t: t[1][0]/len(t[0].split()), reverse=True)[:beam_size])
         #print(" %s --- beam" %(time.time() - start_time))
-        return [Hypothesis(x, hypotheses[x]) for x in hypotheses] # namedtuple('Hypothesis', hypotheses.keys())(**hypotheses) 
+        return [Hypothesis(x, hypotheses[x][0]) for x in hypotheses] # namedtuple('Hypothesis', hypotheses.keys())(**hypotheses) 
         
 
     def evaluate_ppl(self, dev_data: List[Any], batch_size: int=32):
