@@ -175,7 +175,8 @@ class NMT(object):
           output, last_hidden = self.decoder(last_hidden, input_tensor[t-1].unsqueeze(0))
 
           # Compute scores and add them
-          scores += self.criterion(output.squeeze(0), input_tensor[t]) * (input_lengths > t).float()
+          #scores += self.criterion(output.squeeze(0), input_tensor[t]) * (input_lengths > t).float()
+          scores += -(F.log_softmax(output.squeeze(0), dim=1)[range(input_tensor.size(1)),input_tensor[t]] ) * (input_lengths > t).float()
 
         # Normalize each score by the length of the sentence, add up, normalize by batch size
         # normalizers = torch.FloatTensor(input_lengths)
