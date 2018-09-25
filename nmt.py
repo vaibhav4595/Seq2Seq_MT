@@ -50,6 +50,7 @@ from collections import namedtuple
 from docopt import docopt
 from nltk.translate.bleu_score import corpus_bleu, sentence_bleu, SmoothingFunction
 from torch.autograd import Variable
+from torch.nn import functional as F
 from typing import Any, Dict, List, Set, Tuple, Union
 from tqdm import tqdm
 
@@ -174,7 +175,7 @@ class NMT(object):
           output, last_hidden = self.decoder(last_hidden, input_tensor[t-1].unsqueeze(0))
 
           # Compute scores and add them
-          scores += self.criterion(output.squeeze(), input_tensor[t]) * (input_lengths > t).float()
+          scores += self.criterion(output.squeeze(0), input_tensor[t]) * (input_lengths > t).float()
 
         # Normalize each score by the length of the sentence, add up, normalize by batch size
         # normalizers = torch.FloatTensor(input_lengths)
@@ -215,22 +216,29 @@ class NMT(object):
         #     # update previous word
         #     previous_word = max_score_word 
 
+        def to_cpu(h):
+          return [e.cpu() for e in h]
+
+        def to_cuda(h):
+          return [e.cuda() for e in h]
+
         # Beam search decoding
-        hypotheses = {'<s>': 0}  # string vs the log likelihood
+        hypotheses = {'<s>': (0, to_cpu(last_hidden_state))}  # string vs the log likelihood
         start_time = time.time() 
         for t in range(max_decoding_time_step):
             new_hypotheses = {}
-            for hyp,score in hypotheses.items():
+            for hyp,(score,hidden) in hypotheses.items():
                 previous_word = hyp.split()[-1]
                 if previous_word == '</s>':
-                    new_hypotheses[hyp] = score
+                    new_hypotheses[hyp] = (score,None)
                     continue
 
                 # Create a tensor for the last word
                 last_word = torch.cuda.LongTensor(self.vocab.tgt.words2indices([[previous_word]]))
 
                 # Pass through the decoder
-                scores, last_hidden_state = self.decoder(last_hidden_state, last_word)
+                scores, new_hidden = self.decoder(to_cuda(hidden), last_word)
+                scores = F.log_softmax(scores, dim=2)
                 top_scores, score_indices = torch.topk(scores, k=beam_size+1, dim=2)
 
                 # If we get UNK, do one more step. Otherwise skip the last step.
@@ -245,10 +253,11 @@ class NMT(object):
                     continue
 
                   word = self.vocab.tgt.id2word[word_index]
-                  new_hypotheses[hyp + " " + word] = score + top_scores[0,0,i].item()
+                  new_score = score + top_scores[0,0,i].item()
+                  new_hypotheses[hyp + " " + word] = (new_score, to_cpu(new_hidden))
 
        	    # Prune the hypotheses for the next step
-            hypotheses = dict(sorted(new_hypotheses.items(), key=lambda t: t[1]/len(t[0].split()), reverse=True)[:beam_size])
+            hypotheses = dict(sorted(new_hypotheses.items(), key=lambda t: t[1][0]/len(t[0].split()), reverse=True)[:beam_size])
         #print(" %s --- beam" %(time.time() - start_time))
         return [Hypothesis(x, hypotheses[x]) for x in hypotheses] # namedtuple('Hypothesis', hypotheses.keys())(**hypotheses) 
         
