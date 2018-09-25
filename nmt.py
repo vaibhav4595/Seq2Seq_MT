@@ -196,25 +196,34 @@ class NMT(object):
                 value: List[str]: the decoded target sentence, represented as a list of words
                 score: float: the log-likelihood of the target sentence
         """
-
+        src, dec_init_state = self.encode([src_sent])
+        
         # Greedy Decoding for testing
-
-        src, last_hidden_state = self.encode([src_sent])
+        
         # previous_word = '<sos>'
 
         # greedy_ouput = []
         
         # for _ in range(max_decoding_time_step):
+        
+        #     if previous_word == '</s>':             
+        #            break
 
-        #     word_indices = self.vocab.tgt.word2indices([previous_word])            
+        #     word_indices = self.vocab.tgt.words2indices([[previous_word]])
+        #     word_indices = torch.cuda.LongTensor(word_indices)
         #     scores, dec_init_state = self.decoder(dec_init_state, word_indices)
+        #     top_scores, score_indices = torch.topk(scores, k=1, dim=2)
+        #     top_scores = top_scores[0][0].data.cpu().numpy().tolist()
+        #     score_indices = score_indices[0][0].data.cpu().numpy().tolist()
 
         #     # greedy decoding
-        #     max_score_word = self.vocab.tgt.word2id[scores.index(max(scores))]
-        #     beam_list.append(max_score_word)
+        #     max_score_word = self.vocab.tgt.word2id[scores_indices.index(max(top_scores))]
+        #     greedy_ouput.append(max_score_word)
 
         #     # update previous word
         #     previous_word = max_score_word 
+        
+        # return [Hypothesis(x, hypotheses[x]) for x in greedy_ouput]
 
         def to_cpu(h):
           return [e.cpu() for e in h]
@@ -284,7 +293,7 @@ class NMT(object):
         for src_sents, tgt_sents in batch_iter(dev_data, batch_size):
             #loss = -self.model(src_sents, tgt_sents).sum()
             src_encodings, decoder_init_state = self.encode(src_sents)
-            loss = self.decode(src_encodings, decoder_init_state, tgt_sents)[1]
+            loss = self.decode(src_encodings, decoder_init_state, tgt_sents)
 
             cum_loss += loss.item()
             tgt_word_num_to_predict = sum(len(s[1:]) for s in tgt_sents)  # omitting the leading `<s>`
