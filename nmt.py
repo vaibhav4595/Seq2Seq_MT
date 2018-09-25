@@ -165,23 +165,21 @@ class NMT(object):
         scores = torch.zeros(input_tensor[0].size()).cuda()
         last_hidden = decoder_init_state
 
-        outputs, _ = self.decoder(last_hidden, input_tensor, 1, [len(sent) for sent in numb_tgt_sents])
+        #outputs, _ = self.decoder(last_hidden, input_tensor, 1, [len(sent) for sent in numb_tgt_sents])
 
-        return self.criterion(outputs[:-1].view(-1, outputs.size(2)), input_tensor[1:].contiguous().view(-1))
+        #return self.criterion(outputs[:-1].view(-1, outputs.size(2)), input_tensor[1:].contiguous().view(-1))
 
-        #import pdb; pdb.set_trace()
-        #for t in range(1,max_len):
-        #  # Get output from the decoder
-        #  output, last_hidden = self.decoder(last_hidden, input_tensor[t-1].unsqueeze(0))
-        #  import pdb; pdb.set_trace()
+        for t in range(1,max_len):
+          # Get output from the decoder
+          output, last_hidden = self.decoder(last_hidden, input_tensor[t-1].unsqueeze(0))
 
-        #  # Compute scores and add them
-        #  scores += self.criterion(output.squeeze(), input_tensor[t]) * (input_lengths > t).float()
+          # Compute scores and add them
+          scores += self.criterion(output.squeeze(), input_tensor[t]) * (input_lengths > t).float()
 
-        ## Normalize each score by the length of the sentence, add up, normalize by batch size
-        ## normalizers = torch.FloatTensor(input_lengths)
-        ## normalizers = normalizers.cuda()
-        #return (scores / input_lengths).mean() # / normalizers.mean())
+        # Normalize each score by the length of the sentence, add up, normalize by batch size
+        # normalizers = torch.FloatTensor(input_lengths)
+        # normalizers = normalizers.cuda()
+        return (scores / input_lengths).mean() # / normalizers.mean())
 
     def beam_search(self, src_sent: List[str], beam_size: int=5, max_decoding_time_step: int=70) -> List[Hypothesis]:
         """
@@ -218,13 +216,13 @@ class NMT(object):
         #     previous_word = max_score_word 
 
         # Beam search decoding
-        hypotheses = {'sos': 0}  # string vs the log likelihood
+        hypotheses = {'<s>': 0}  # string vs the log likelihood
         start_time = time.time() 
         for t in range(max_decoding_time_step):
             current = {}
             for x in hypotheses:
                 previous_word = x.split()[-1]
-                if previous_word == 'eos':
+                if previous_word == '</s>':
                     current[x] = hypotheses[x]
                     break
                 word_indices = self.vocab.tgt.words2indices([[previous_word]])
@@ -240,7 +238,7 @@ class NMT(object):
 
        	    # Prune the hypotheses for the next step
             hypotheses = dict(sorted(current.items(), key=lambda x: -x[1])[:beam_size])
-        print(" %s --- beam" %(time.time() - start_time))
+        #print(" %s --- beam" %(time.time() - start_time))
         return [Hypothesis(x, hypotheses[x]) for x in hypotheses] # namedtuple('Hypothesis', hypotheses.keys())(**hypotheses) 
         
 
