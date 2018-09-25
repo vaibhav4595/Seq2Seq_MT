@@ -179,7 +179,7 @@ class NMT(object):
         # Normalize each score by the length of the sentence, add up, normalize by batch size
         # normalizers = torch.FloatTensor(input_lengths)
         # normalizers = normalizers.cuda()
-        return (scores / input_lengths).mean() # / normalizers.mean())
+        return (scores / input_lengths).sum(), scores.sum()# / normalizers.mean())
 
     def beam_search(self, src_sent: List[str], beam_size: int=5, max_decoding_time_step: int=70) -> List[Hypothesis]:
         """
@@ -360,10 +360,12 @@ def train(args: Dict[str, str]):
 
             # (batch_size)
             start_time = time.time()
-            loss = model(src_sents, tgt_sents)
+            loss, sum_loss = model(src_sents, tgt_sents)
             #print("forward", time.time() - start_time)
-            report_loss += loss.item()
-            cum_loss += loss.item()
+            #report_loss += loss.item()
+            #for now using the sum_loss to calculate report_loss
+            report_loss += sum_loss.item()
+            cum_loss += sum_loss.item()
 
             # TODO: ensure that this can actually be called
             loss.backward()
@@ -385,8 +387,8 @@ def train(args: Dict[str, str]):
             if train_iter % log_every == 0:
                 print('epoch %d, iter %d, avg. loss %.2f, avg. ppl %.2f ' \
                       'cum. examples %d, speed %.2f words/sec, time elapsed %.2f sec' % (epoch, train_iter,
-                                                                                         report_loss,
-                                                                                         math.exp(report_loss*batch_size*log_every / report_tgt_words),
+                                                                                         report_loss / report_examples,
+                                                                                         np.exp(report_loss / report_tgt_words),
                                                                                          cumulative_examples,
                                                                                          report_tgt_words / (time.time() - train_time),
                                                                                          time.time() - begin_time), file=sys.stderr)
