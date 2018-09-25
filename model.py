@@ -54,10 +54,11 @@ class DecoderRNN(nn.Module):
             output = output[:, unsort_indices]
             hidden = (hidden[0][:,sorted_indices], hidden[1][:,sorted_indices])
 	
-            output = F.softmax(self.out(output), dim=2)
+            #output = F.softmax(self.out(output), dim=2)
             return output, hidden
         else:
             embedded = self.embedding(output)
             output, hidden = self.LSTM(embedded, hidden)
-            output = F.log_softmax(self.out(hidden[0]), dim=2)
+            output = self.out(hidden[0])
+            #output = F.log_softmax(self.out(hidden[0]), dim=2)
             return output, hidden
