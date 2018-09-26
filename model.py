@@ -6,7 +6,7 @@ class EncoderRNN(nn.Module):
     def __init__(self, vocab_size, embed_size, hidden_size):
         super(EncoderRNN, self).__init__()
 
-        self.hidden_size = hidden_size
+        self.hidden_size = hidden_size // 2
         self.input_size = vocab_size
         self.embed_size = embed_size
         self.dropout_rate = 0.5
@@ -20,7 +20,10 @@ class EncoderRNN(nn.Module):
         packed = torch.nn.utils.rnn.pack_padded_sequence(embedded, input_lengths)
         output, hidden = self.LSTM(packed, None)
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output)
-        return output, (self.dropout(hidden[0]), self.dropout(hidden[1]))
+
+        # Changes for Bidi to work
+        hidden = (torch.cat((hidden[0][0], hidden[1][0]), dim=1), torch.cat((hidden[0][1], hidden[1][1]), dim=1))
+        return output, (self.dropout(hidden[0]).unsqueeze(0), self.dropout(hidden[1]).unsqueeze(0))
 
 class DecoderRNN(nn.Module):
     def __init__(self, embed_size, hidden_size, output_size):
@@ -31,7 +34,7 @@ class DecoderRNN(nn.Module):
         self.output_size = output_size
         self.dropout_rate = 0.5
         self.embedding = nn.Embedding(self.output_size, self.embed_size)
-        self.LSTM = nn.LSTM(self.embed_size, self.hidden_size, bidirectional=True) #TODO : for attention add hidden size to input
+        self.LSTM = nn.LSTM(self.embed_size, self.hidden_size) #TODO : for attention add hidden size to input
         self.dropout = nn.Dropout(self.dropout_rate)
         self.out = nn.Linear(self.hidden_size, self.output_size)
 
