@@ -71,8 +71,8 @@ class NMT(object):
         self.dropout_rate = dropout_rate
         self.vocab = vocab
 
-        src_vocab_size = len(self.vocab.src.numberize)
-        tgt_vocab_size = len(self.vocab.tgt.numberize)
+        src_vocab_size = len(self.vocab.src.word2id)
+        tgt_vocab_size = len(self.vocab.tgt.word2id)
 
         self.encoder = model.EncoderRNN(vocab_size=src_vocab_size,
                                         embed_size=self.embed_size,
@@ -117,7 +117,7 @@ class NMT(object):
             decoder_init_state: decoder GRU/LSTM's initial state, computed from source encodings
         """
         # Numberize the source sentences
-        numb_src_sents = self.vocab.src.words2indices(src_sents)
+        numb_src_sents = self.vocab.src.numberize(src_sents)
 
         # Pad each sentence to the maximum length
         max_len = len(numb_src_sents[0])
@@ -152,7 +152,7 @@ class NMT(object):
         # TODO: for now ignoring source encodings, must use for attention
 
         # Numberize the target sentences
-        numb_tgt_sents = self.vocab.tgt.words2indices(tgt_sents)
+        numb_tgt_sents = self.vocab.tgt.numberize(tgt_sents)
 
         # Pad each sentence to the maximum length
         max_len = max([len(sent) for sent in numb_tgt_sents])
@@ -233,18 +233,18 @@ class NMT(object):
           return [e.cuda().detach() for e in h]
 
         # Beam search decoding
-        hypotheses = {'<s>': (0, to_cpu(dec_init_state))}  # string vs the log likelihood
+        hypotheses = {str(self.vocab.tgt.word2id['<s>']): (0, to_cpu(dec_init_state))}  # string vs the log likelihood
         start_time = time.time() 
         for t in range(max_decoding_time_step):
             new_hypotheses = {}
             for hyp,(score,hidden) in hypotheses.items():
-                previous_word = hyp.split()[-1]
-                if previous_word == '</s>':
+                previous_word = int(hyp.split()[-1])
+                if previous_word == self.vocab.tgt.word2id['</s>']:
                     new_hypotheses[hyp] = (score,None)
                     continue
 
                 # Create a tensor for the last word
-                last_word = torch.cuda.LongTensor(self.vocab.tgt.words2indices([[previous_word]]))
+                last_word = torch.cuda.LongTensor([[previous_word]])
 
                 # Pass through the decoder
                 scores, new_hidden = self.decoder(to_cuda(hidden), last_word)
@@ -263,14 +263,17 @@ class NMT(object):
                     seen_unk = True
                     continue
 
-                  word = self.vocab.tgt.denumberize[word_index]
+                  word = str(word_index)
                   new_score = score + top_scores[0,0,i].item()
                   new_hypotheses[hyp + " " + word] = (new_score, new_hidden)
 
        	    # Prune the hypotheses for the next step
             hypotheses = dict(sorted(new_hypotheses.items(), key=lambda t: t[1][0]/len(t[0].split()), reverse=True)[:beam_size])
         #print(" %s --- beam" %(time.time() - start_time))
-        return [Hypothesis(x, hypotheses[x][0]) for x in hypotheses] # namedtuple('Hypothesis', hypotheses.keys())(**hypotheses) 
+        def _denumberize(s):
+          nums = [int(e) for e in s.split()]
+          return self.vocab.tgt.denumberize(nums)
+        return [Hypothesis(_denumberize(x), hypotheses[x][0]) for x in hypotheses] # namedtuple('Hypothesis', hypotheses.keys())(**hypotheses) 
         
 
     def evaluate_ppl(self, dev_data: List[Any], batch_size: int=32):
