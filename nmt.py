@@ -71,8 +71,8 @@ class NMT(object):
         self.dropout_rate = dropout_rate
         self.vocab = vocab
 
-        src_vocab_size = len(self.vocab.src.numberize)
-        tgt_vocab_size = len(self.vocab.tgt.numberize)
+        src_vocab_size = len(self.vocab.src.word2id)
+        tgt_vocab_size = len(self.vocab.tgt.word2id)
 
         self.encoder = model.EncoderRNN(vocab_size=src_vocab_size,
                                         embed_size=self.embed_size,
