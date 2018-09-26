@@ -285,8 +285,8 @@ class NMT(object):
             ppl: the perplexity on dev sentences
         """
         # Set model to eval
-        model.encoder.eval()
-        model.decoder.eval()
+        self.encoder.eval()
+        self.decoder.eval()
 
         cum_loss = 0.
         cum_tgt_words = 0.
@@ -307,8 +307,8 @@ class NMT(object):
         ppl = np.exp(cum_loss / cum_tgt_words)
 
         # Set model back to train
-        model.encoder.train()
-        model.decoder.train()
+        self.encoder.train()
+        self.decoder.train()
 
         return ppl
 
