@@ -72,7 +72,7 @@ class NMT(object):
         self.vocab = vocab
 
         src_vocab_size = len(self.vocab.src.numberize)
-        tgt_vocab_size = len(self.vocab.tgt.denumberize)
+        tgt_vocab_size = len(self.vocab.tgt.numberize)
 
         self.encoder = model.EncoderRNN(vocab_size=src_vocab_size,
                                         embed_size=self.embed_size,
