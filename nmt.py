@@ -284,6 +284,9 @@ class NMT(object):
         Returns:
             ppl: the perplexity on dev sentences
         """
+        # Set model to eval
+        model.encoder.eval()
+        model.decoder.eval()
 
         cum_loss = 0.
         cum_tgt_words = 0.
@@ -302,6 +305,10 @@ class NMT(object):
             cum_tgt_words += tgt_word_num_to_predict
 
         ppl = np.exp(cum_loss / cum_tgt_words)
+
+        # Set model back to train
+        model.encoder.train()
+        model.decoder.train()
 
         return ppl
 
@@ -366,6 +373,11 @@ def train(args: Dict[str, str]):
                 hidden_size=int(args['--hidden-size']),
                 dropout_rate=float(args['--dropout']),
                 vocab=vocab)
+
+    # Set training to true
+    model.encoder.train()
+    model.decoder.train()
+
     # model.cuda() or model = model.cuda() or model = NMT().cuda() # error: model has no attribute cuda
 
     num_trial = 0
@@ -516,6 +528,10 @@ def decode(args: Dict[str, str]):
     else:
         model = NMT(256, 256, pickle.load(open('data/vocab.bin', 'rb')))
 
+    # Set models to eval (disables dropout)
+    model.encoder.eval()
+    model.decoder.eval()
+
     hypotheses = beam_search(model, test_data_src,
                              beam_size=int(args['--beam-size']),
                              max_decoding_time_step=int(args['--max-decoding-time-step']))
@@ -530,6 +546,10 @@ def decode(args: Dict[str, str]):
             top_hyp = hyps[0]
             hyp_sent = ' '.join(top_hyp.value.split()[1:-1])
             f.write(hyp_sent + '\n')
+
+    # Back to train (not really necessary for now)
+    model.encoder.train()
+    model.decoder.train()
 
 
 def main():
