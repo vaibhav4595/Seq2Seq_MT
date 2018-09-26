@@ -71,8 +71,8 @@ class NMT(object):
         self.dropout_rate = dropout_rate
         self.vocab = vocab
 
-        src_vocab_size = len(self.vocab.src.word2id)
-        tgt_vocab_size = len(self.vocab.tgt.word2id)
+        src_vocab_size = len(self.vocab.src.numberize)
+        tgt_vocab_size = len(self.vocab.tgt.denumberize)
 
         self.encoder = model.EncoderRNN(vocab_size=src_vocab_size,
                                         embed_size=self.embed_size,
@@ -263,7 +263,7 @@ class NMT(object):
                     seen_unk = True
                     continue
 
-                  word = self.vocab.tgt.id2word[word_index]
+                  word = self.vocab.tgt.denumberize[word_index]
                   new_score = score + top_scores[0,0,i].item()
                   new_hypotheses[hyp + " " + word] = (new_score, new_hidden)
 
