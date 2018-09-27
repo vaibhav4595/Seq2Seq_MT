@@ -13,7 +13,7 @@ class EncoderRNN(nn.Module):
         self.dropout_rate = 0.2
         self.embedding = nn.Embedding(self.input_size, self.embed_size)
         self.dropout = nn.Dropout(self.dropout_rate)
-        self.LSTM = nn.LSTM(self.embed_size, self.hidden_size, num_layers=2)
+        self.LSTM = nn.LSTM(self.embed_size, self.hidden_size, num_layers=1, dropout=self.dropout_rate)
 
     def forward(self, input, input_lengths):
         embedded = self.embedding(input)
@@ -35,15 +35,27 @@ class DecoderRNN(nn.Module):
         self.output_size = output_size
         self.dropout_rate = 0.2
         self.embedding = nn.Embedding(self.output_size, self.embed_size)
-        self.LSTM = nn.LSTM(self.embed_size, self.hidden_size, num_layers=2) #TODO : for attention add hidden size to input
+        self.LSTM = nn.LSTM(self.hidden_size + self.embed_size, self.hidden_size, num_layers=1, dropout=self.dropout_rate)
         self.dropout = nn.Dropout(self.dropout_rate)
         self.out = nn.Linear(self.hidden_size, self.output_size)
 
-    def forward(self, hidden, output, flag=0, output_lengths=None):
+    def forward(self, encoder_outputs, hidden, output, flag=0, output_lengths=None):
         embedded = self.embedding(output)
         #embedded = F.relu(embedded)
         embedded = self.dropout(embedded)
-        output, hidden = self.LSTM(embedded, hidden)
+
+        # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)
+        cur_hidden = hidden[0].transpose(0,1)
+        encoder_hiddens = encoder_outputs.transpose(0,1).transpose(1,2)
+        attn_weights = F.softmax(cur_hidden.bmm(encoder_hiddens), dim=2)
+
+        # Determine encoder context, (B x 1 x S) * (B x S x H) = (B x 1 x H)
+        encoder_contexts = attn_weights.bmm(encoder_outputs.transpose(0,1))
+
+        # Concate with embedded
+        rnn_input = torch.cat((embedded, encoder_contexts.transpose(0,1)), dim=2)
+
+        output, hidden = self.LSTM(rnn_input, hidden)
         output = self.out(output)
         #output = F.log_softmax(self.out(hidden[0]), dim=2)
         return output, hidden

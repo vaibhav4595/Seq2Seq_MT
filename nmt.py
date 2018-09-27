@@ -170,7 +170,7 @@ class NMT(object):
         #return self.criterion(outputs[:-1].view(-1, outputs.size(2)), input_tensor[1:].contiguous().view(-1))
         for t in range(1,max_len):
           # Get output from the decoder
-          output, last_hidden = self.decoder(last_hidden, input_tensor[t-1].unsqueeze(0))
+          output, last_hidden = self.decoder(src_encodings, last_hidden, input_tensor[t-1].unsqueeze(0))
           # Compute scores and add them
           #scores += self.criterion(output.squeeze(0), input_tensor[t]) * (input_lengths > t).float()
           scores += self.criterion(output.squeeze(0), input_tensor[t]) * (input_lengths > t).float()
@@ -243,7 +243,7 @@ class NMT(object):
                 last_word = torch.cuda.LongTensor([[previous_word]])
 
                 # Pass through the decoder
-                scores, new_hidden = self.decoder(to_cuda(hidden), last_word)
+                scores, new_hidden = self.decoder(src, to_cuda(hidden), last_word)
                 new_hidden = to_cpu(new_hidden)
                 scores = F.log_softmax(scores, dim=2)
                 top_scores, score_indices = torch.topk(scores, k=beam_size+1, dim=2)
