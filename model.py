@@ -90,7 +90,7 @@ class DecoderRNN(nn.Module):
           encoder_contexts = attn_weights.bmm(encoder_outputs.transpose(0,1))
 
           # Concate with embedded
-          rnn_input = torch.cat((embedded, encoder_contexts.transpose(0,1)), dim=2)
+          rnn_input = torch.cat((rnn_input, encoder_contexts.transpose(0,1)), dim=2)
 
         """
         Self-attention implementation. Uncomment after hitting 27 BLEU, to avoid slowing down training.
