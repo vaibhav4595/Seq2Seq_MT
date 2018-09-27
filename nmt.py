@@ -83,7 +83,7 @@ class NMT(object):
         self.encoder = self.encoder.cuda()
         self.decoder = self.decoder.cuda() 
 
-        self.criterion = torch.nn.CrossEntropyLoss().cuda()
+        self.criterion = torch.nn.CrossEntropyLoss(reduce=0).cuda()
 
     def __call__(self, src_sents: List[List[str]], tgt_sents: List[List[str]]) -> torch.Tensor:
         """
@@ -128,7 +128,6 @@ class NMT(object):
 
         # Construct a long tensor (seq_len * batch_size)
         input_tensor = Variable(torch.LongTensor(padded_src_sent).t()).cuda()
-
         # Call encoder
         src_encodings, decoder_init_state = self.encoder(input_tensor, input_lengths)
 
@@ -169,19 +168,16 @@ class NMT(object):
         #outputs, _ = self.decoder(last_hidden, input_tensor, 1, [len(sent) for sent in numb_tgt_sents])
 
         #return self.criterion(outputs[:-1].view(-1, outputs.size(2)), input_tensor[1:].contiguous().view(-1))
-
         for t in range(1,max_len):
           # Get output from the decoder
           output, last_hidden = self.decoder(last_hidden, input_tensor[t-1].unsqueeze(0))
-
           # Compute scores and add them
           #scores += self.criterion(output.squeeze(0), input_tensor[t]) * (input_lengths > t).float()
-          scores += -(F.log_softmax(output.squeeze(0), dim=1)[range(input_tensor.size(1)),input_tensor[t]] ) * (input_lengths > t).float()
-
+          scores += self.criterion(output.squeeze(0), input_tensor[t]) * (input_lengths > t).float()
         # Normalize each score by the length of the sentence, add up, normalize by batch size
         # normalizers = torch.FloatTensor(input_lengths)
         # normalizers = normalizers.cuda()
-        return (scores / input_lengths).mean(), scores.sum()# / normalizers.mean())
+        return scores.mean(), scores.sum()# / normalizers.mean())
 
     def beam_search(self, src_sent: List[str], beam_size: int=5, max_decoding_time_step: int=70) -> List[Hypothesis]:
         """
