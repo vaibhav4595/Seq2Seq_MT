@@ -10,10 +10,10 @@ class EncoderRNN(nn.Module):
         self.hidden_size = hidden_size
         self.input_size = vocab_size
         self.embed_size = embed_size
-        self.dropout_rate = 0.1
+        self.dropout_rate = 0.2
         self.embedding = nn.Embedding(self.input_size, self.embed_size)
         self.dropout = nn.Dropout(self.dropout_rate)
-        self.LSTM = nn.LSTM(self.embed_size, self.hidden_size)
+        self.LSTM = nn.LSTM(self.embed_size, self.hidden_size, num_layers=2)
 
     def forward(self, input, input_lengths):
         embedded = self.embedding(input)
@@ -33,15 +33,15 @@ class DecoderRNN(nn.Module):
         self.hidden_size = hidden_size
         self.embed_size = embed_size
         self.output_size = output_size
-        self.dropout_rate = 0.1
+        self.dropout_rate = 0.2
         self.embedding = nn.Embedding(self.output_size, self.embed_size)
-        self.LSTM = nn.LSTM(self.embed_size, self.hidden_size) #TODO : for attention add hidden size to input
+        self.LSTM = nn.LSTM(self.embed_size, self.hidden_size, num_layers=2) #TODO : for attention add hidden size to input
         self.dropout = nn.Dropout(self.dropout_rate)
         self.out = nn.Linear(self.hidden_size, self.output_size)
 
     def forward(self, hidden, output, flag=0, output_lengths=None):
         embedded = self.embedding(output)
-        embedded = F.relu(embedded)
+        #embedded = F.relu(embedded)
         embedded = self.dropout(embedded)
         output, hidden = self.LSTM(embedded, hidden)
         output = self.out(output)
