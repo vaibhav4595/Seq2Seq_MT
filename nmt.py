@@ -36,6 +36,7 @@ Options:
     --valid-niter=<int>                     perform validation after how many iterations [default: 2000]
     --dropout=<float>                       dropout [default: 0.2]
     --max-decoding-time-step=<int>          maximum number of decoding time steps [default: 70]
+    --self-attention                        use self attention for the decoder
 """
 import math
 import model
@@ -94,7 +95,8 @@ class NMT(object):
                  dropout_rate,
                  num_layers,
                  bidirectional,
-                 attention_type):
+                 attention_type,
+                 self_attention):
         super(NMT, self).__init__()
 
         self.embed_size = embed_size
@@ -116,7 +118,8 @@ class NMT(object):
                                         output_size=tgt_vocab_size,
                                         dropout_rate=dropout_rate,
                                         num_layers=num_layers,
-                                        attention_type=attention_type)
+                                        attention_type=attention_type,
+                                        self_attention=self_attention)
         self.encoder = self.encoder.cuda()
         self.decoder = self.decoder.cuda() 
 
@@ -413,7 +416,8 @@ def train(args: Dict[str, str]):
                 vocab=vocab,
                 num_layers=int(args['--num-layers']),
                 bidirectional=args['--bidirectional'],
-                attention_type=args['--attention-type'])
+                attention_type=args['--attention-type'],
+                self_attention=args['--self-attention'])
 
     # Set training to true
     model.encoder.train()
