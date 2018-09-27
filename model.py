@@ -4,18 +4,24 @@ import torch.nn.functional as F
 from pdb import set_trace as bp
 
 class EncoderRNN(nn.Module):
-    def __init__(self, vocab_size, embed_size, hidden_size):
+    def __init__(self, 
+                 vocab_size, 
+                 embed_size, 
+                 hidden_size,
+                 dropout_rate,
+                 num_layers,
+                 bidirectional):
         super(EncoderRNN, self).__init__()
 
         self.hidden_size = hidden_size 
         self.input_size = vocab_size
         self.embed_size = embed_size
-        self.dropout_rate = 0.2
-        self.num_layers = 1
+        self.dropout_rate = dropout_rate
+        self.num_layers = num_layers
+        self.bidirectional = bidirectional
         self.embedding = nn.Embedding(self.input_size, self.embed_size)
         self.dropout = nn.Dropout(self.dropout_rate)
-        self.LSTM = nn.LSTM(self.embed_size, self.hidden_size, num_layers=self.num_layers, dropout=self.dropout_rate, bidirectional=False)
-        self.bidi = False
+        self.LSTM = nn.LSTM(self.embed_size, self.hidden_size, num_layers=self.num_layers, dropout=self.dropout_rate, bidirectional=self.bidirectional)
 
     def forward(self, input, input_lengths):
         embedded = self.embedding(input)
@@ -23,7 +29,7 @@ class EncoderRNN(nn.Module):
         packed = torch.nn.utils.rnn.pack_padded_sequence(embedded, input_lengths)
         output, hidden = self.LSTM(packed, None)
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output)
-        if self.bidi != True:
+        if self.bidirectional != True:
             return output, hidden
         else:
             hidden_final = torch.cat((hidden[0][0], hidden[0][1]), dim=1).unsqueeze(0)
@@ -35,15 +41,22 @@ class EncoderRNN(nn.Module):
             return output, (hidden_final, cell_final)
 
 class DecoderRNN(nn.Module):
-    def __init__(self, embed_size, hidden_size, output_size):
+    def __init__(self, 
+                 embed_size, 
+                 hidden_size, 
+                 output_size,
+                 dropout_rate,
+                 num_layers,
+                 attention_type='none'):
         super(DecoderRNN, self).__init__()
 
         self.hidden_size = hidden_size 
         self.embed_size = embed_size
         self.output_size = output_size
-        self.dropout_rate = 0.2
+        self.dropout_rate = dropout_rate
+        self.num_layers = num_layers
         self.embedding = nn.Embedding(self.output_size, self.embed_size)
-        self.LSTM = nn.LSTM(self.hidden_size + self.embed_size, self.hidden_size, num_layers=1, dropout=self.dropout_rate)
+        self.LSTM = nn.LSTM(self.hidden_size + self.embed_size, self.hidden_size, num_layers=self.num_layers, dropout=self.dropout_rate)
         self.dropout = nn.Dropout(self.dropout_rate)
         self.out = nn.Linear(self.hidden_size, self.output_size)
 

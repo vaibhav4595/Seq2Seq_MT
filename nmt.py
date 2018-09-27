@@ -27,6 +27,9 @@ Options:
     --max-num-trial=<int>                   terminate training after how many trials [default: 5]
     --lr-decay=<float>                      learning rate decay [default: 0.5]
     --beam-size=<int>                       beam size [default: 5]
+    --num-layers=<int>                      number of layers [default: 1]
+    --bidirectional                         whether the encoder is bidirectional
+    --attention-type=<str>                  type of attention, types are none/dot/general/concat [default: none]
     --lr=<float>                            learning rate [default: 0.001]
     --uniform-init=<float>                  uniformly initialize all parameters [default: 0.1]
     --save-to=<file>                        model save path
@@ -34,7 +37,6 @@ Options:
     --dropout=<float>                       dropout [default: 0.2]
     --max-decoding-time-step=<int>          maximum number of decoding time steps [default: 70]
 """
-
 import math
 import model
 import numpy as np
@@ -85,7 +87,14 @@ def init_weights(model):
 
 class NMT(object):
 
-    def __init__(self, embed_size, hidden_size, vocab, dropout_rate=0.2):
+    def __init__(self, 
+                 embed_size, 
+                 hidden_size, 
+                 vocab, 
+                 dropout_rate,
+                 num_layers,
+                 bidirectional,
+                 attention_type):
         super(NMT, self).__init__()
 
         self.embed_size = embed_size
@@ -98,10 +107,16 @@ class NMT(object):
 
         self.encoder = model.EncoderRNN(vocab_size=src_vocab_size,
                                         embed_size=self.embed_size,
-                                        hidden_size=self.hidden_size)
+                                        hidden_size=hidden_size//2 if bidirectional else hidden_size,
+                                        dropout_rate=dropout_rate,
+                                        num_layers=num_layers,
+                                        bidirectional=bidirectional)
         self.decoder = model.DecoderRNN(embed_size=self.embed_size,
                                         hidden_size=self.hidden_size,
-                                        output_size=tgt_vocab_size)
+                                        output_size=tgt_vocab_size,
+                                        dropout_rate=dropout_rate,
+                                        num_layers=num_layers,
+                                        attention_type=attention_type)
         self.encoder = self.encoder.cuda()
         self.decoder = self.decoder.cuda() 
 
@@ -292,6 +307,7 @@ class NMT(object):
         def _denumberize(s):
           nums = [int(e) for e in s.split()]
           return self.vocab.tgt.denumberize(nums)
+
         return [Hypothesis(_denumberize(x), hypotheses[x][0]) for x in hypotheses] # namedtuple('Hypothesis', hypotheses.keys())(**hypotheses) 
         
 
@@ -394,7 +410,10 @@ def train(args: Dict[str, str]):
     model = NMT(embed_size=int(args['--embed-size']),
                 hidden_size=int(args['--hidden-size']),
                 dropout_rate=float(args['--dropout']),
-                vocab=vocab)
+                vocab=vocab,
+                num_layers=int(args['--num-layers']),
+                bidirectional=args['--bidirectional'],
+                attention_type=args['--attention-type'])
 
     # Set training to true
     model.encoder.train()
