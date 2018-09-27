@@ -24,7 +24,7 @@ python nmt.py \
     --dev-src ${dev_src} \
     --dev-tgt ${dev_tgt} \
     --save-to ${work_dir}/model.bin \
-    --valid-niter 2400 \
+    --valid-niter 2000 \
     --batch-size 64 \
     --hidden-size 256 \
     --embed-size 256 \
@@ -37,7 +37,7 @@ python nmt.py \
     decode \
     --cuda \
     --beam-size 5 \
-    --max-decoding-time-step 100 \
+    --max-decoding-time-step 70 \
     ${work_dir}/model.bin \
     ${test_src} \
     ${work_dir}/decode.txt
