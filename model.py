@@ -13,7 +13,11 @@ class EncoderRNN(nn.Module):
         self.dropout_rate = 0.2
         self.embedding = nn.Embedding(self.input_size, self.embed_size)
         self.dropout = nn.Dropout(self.dropout_rate)
+<<<<<<< HEAD
         self.LSTM = nn.LSTM(self.embed_size, self.hidden_size, num_layers=1, dropout=self.dropout_rate)
+=======
+        self.LSTM = nn.LSTM(self.embed_size, self.hidden_size)
+>>>>>>> 08e36a72563fde8062d3e9030398be58d7778abb
 
     def forward(self, input, input_lengths):
         embedded = self.embedding(input)
@@ -41,7 +45,7 @@ class DecoderRNN(nn.Module):
 
     def forward(self, encoder_outputs, hidden, output, flag=0, output_lengths=None):
         embedded = self.embedding(output)
-        #embedded = F.relu(embedded)
+        embedded = F.relu(embedded)
         embedded = self.dropout(embedded)
 
         # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)

@@ -61,6 +61,28 @@ from vocab import Vocab, VocabEntry
 Hypothesis = namedtuple('Hypothesis', ['value', 'score'])
 
 
+def init_weights(model):
+    for m in model.children():
+        #print(m, type(m))
+        if type(m) == torch.nn.Linear:
+            torch.nn.init.xavier_uniform_(m.weight)
+            m.bias.data.fill_(0.01)
+            #print(m.weight)
+            #print(m.bias)
+        if type(m) == torch.nn.LSTM:
+            for name, param in m.named_parameters():
+                if 'bias' in name:
+                    # special treatment for forget gate : order is b_ii|b_if|b_ig|b_io
+                    torch.nn.init.constant_(param[len(param)//4:len(param)//2], 1.0)
+                    # bias for rest of the gates, set to zero
+                    torch.nn.init.constant_(param[:len(param)//4], 0.0)
+                    torch.nn.init.constant_(param[len(param)//2:3*len(param)//2], 0.0)
+                    torch.nn.init.constant_(param[3*len(param)//2:], 0.0)
+                elif 'weight' in name:
+                    torch.nn.init.xavier_normal_(param)
+                #print(name, len(param), param)
+
+
 class NMT(object):
 
     def __init__(self, embed_size, hidden_size, vocab, dropout_rate=0.2):
@@ -376,6 +398,10 @@ def train(args: Dict[str, str]):
     # Set training to true
     model.encoder.train()
     model.decoder.train()
+
+    # initialize the weights
+    model.encoder.apply(init_weights)
+    model.encoder.apply(init_weights)
 
     # model.cuda() or model = model.cuda() or model = NMT().cuda() # error: model has no attribute cuda
 
