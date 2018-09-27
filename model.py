@@ -43,7 +43,7 @@ class DecoderRNN(nn.Module):
         self.output_size = output_size
         self.dropout_rate = 0.2
         self.embedding = nn.Embedding(self.output_size, self.embed_size)
-        self.LSTM = nn.LSTM(self.hidden_size + self.embed_size, self.hidden_size, num_layers=1, dropout=self.dropout_rate)
+        self.LSTM = nn.LSTM(self.hidden_size + self.embed_size, self.hidden_size, num_layers=2, dropout=self.dropout_rate)
         self.dropout = nn.Dropout(self.dropout_rate)
         self.out = nn.Linear(self.hidden_size, self.output_size)
 
@@ -53,7 +53,7 @@ class DecoderRNN(nn.Module):
         embedded = self.dropout(embedded)
 
         # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)
-        cur_hidden = hidden[0].transpose(0,1)
+        cur_hidden = hidden[0][-1:].transpose(0,1)
         encoder_hiddens = encoder_outputs.transpose(0,1).transpose(1,2)
         attn_weights = F.softmax(cur_hidden.bmm(encoder_hiddens), dim=2)
 
