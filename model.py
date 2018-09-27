@@ -7,11 +7,11 @@ class EncoderRNN(nn.Module):
     def __init__(self, vocab_size, embed_size, hidden_size):
         super(EncoderRNN, self).__init__()
 
-        self.hidden_size = hidden_size // 2
+        self.hidden_size = hidden_size 
         self.input_size = vocab_size
         self.embed_size = embed_size
         self.dropout_rate = 0.2
-        self.num_layers = 2
+        self.num_layers = 4
         self.embedding = nn.Embedding(self.input_size, self.embed_size)
         self.dropout = nn.Dropout(self.dropout_rate)
         self.LSTM = nn.LSTM(self.embed_size, self.hidden_size, num_layers=self.num_layers, dropout=self.dropout_rate, bidirectional=True)
@@ -38,12 +38,12 @@ class DecoderRNN(nn.Module):
     def __init__(self, embed_size, hidden_size, output_size):
         super(DecoderRNN, self).__init__()
 
-        self.hidden_size = hidden_size
+        self.hidden_size = hidden_size * 2
         self.embed_size = embed_size
         self.output_size = output_size
         self.dropout_rate = 0.2
         self.embedding = nn.Embedding(self.output_size, self.embed_size)
-        self.LSTM = nn.LSTM(self.hidden_size + self.embed_size, self.hidden_size, num_layers=2, dropout=self.dropout_rate)
+        self.LSTM = nn.LSTM(self.hidden_size + self.embed_size, self.hidden_size, num_layers=4, dropout=self.dropout_rate)
         self.dropout = nn.Dropout(self.dropout_rate)
         self.out = nn.Linear(self.hidden_size, self.output_size)
 
