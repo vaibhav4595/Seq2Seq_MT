@@ -199,7 +199,8 @@ class NMT(object):
         # Normalize each score by the length of the sentence, add up, normalize by batch size
         # normalizers = torch.FloatTensor(input_lengths)
         # normalizers = normalizers.cuda()
-        return scores.mean(), scores.sum()# / normalizers.mean())
+        (scores/(input_lengths - 1))
+        return (scores/(input_lengths - 1)).mean(), scores.sum()# / normalizers.mean())
 
     def beam_search(self, src_sent: List[str], beam_size: int=5, max_decoding_time_step: int=70) -> List[Hypothesis]:
         """
