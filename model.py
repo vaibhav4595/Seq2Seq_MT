@@ -56,7 +56,14 @@ class DecoderRNN(nn.Module):
         self.dropout_rate = dropout_rate
         self.num_layers = num_layers
         self.embedding = nn.Embedding(self.output_size, self.embed_size)
-        self.LSTM = nn.LSTM(self.hidden_size + self.embed_size, self.hidden_size, num_layers=self.num_layers, dropout=self.dropout_rate)
+
+        # Calculate LSTM input size
+        if attention_type == 'none':
+          input_size = self.embed_size
+        else:
+          input_size = self.embed_size + self.hidden_size
+
+        self.LSTM = nn.LSTM(input_size, self.hidden_size, num_layers=self.num_layers, dropout=self.dropout_rate)
         self.dropout = nn.Dropout(self.dropout_rate)
         self.out = nn.Linear(self.hidden_size, self.output_size)
 
