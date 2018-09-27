@@ -31,7 +31,12 @@ python nmt.py \
     --uniform-init 0.1 \
     --dropout 0.2 \
     --clip-grad 5.0 \
-    --lr-decay 0.5 
+    --lr-decay 0.5 \
+    --num-layers 1 \
+    --attention-type 'none' 
+
+# FOR BIDIRECTIONAL add the flag --bidirectional
+
 
 python nmt.py \
     decode \
