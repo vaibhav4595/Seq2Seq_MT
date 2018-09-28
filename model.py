@@ -22,10 +22,13 @@ class EncoderRNN(nn.Module):
         self.embedding = nn.Embedding(self.input_size, self.embed_size)
         self.dropout = nn.Dropout(self.dropout_rate)
         self.LSTM = nn.LSTM(self.embed_size, self.hidden_size, num_layers=self.num_layers, dropout=self.dropout_rate, bidirectional=self.bidirectional)
+        #for layer
+        self.embedding_layerNorm = nn.LayerNorm(self.embed_size)
 
     def forward(self, input, input_lengths):
         embedded = self.embedding(input)
         embedded = self.dropout(embedded)
+        embedded = self.embedding_layerNorm(embedded)
         packed = torch.nn.utils.rnn.pack_padded_sequence(embedded, input_lengths)
         output, hidden = self.LSTM(packed, None)
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output)
@@ -57,6 +60,7 @@ class DecoderRNN(nn.Module):
         self.dropout_rate = dropout_rate
         self.num_layers = num_layers
         self.embedding = nn.Embedding(self.output_size, self.embed_size)
+        self.embedding_layerNorm = nn.LayerNorm(self.embed_size)
 
         # Calculate LSTM input size
         input_size = self.embed_size
@@ -75,6 +79,7 @@ class DecoderRNN(nn.Module):
 
     def forward(self, encoder_outputs, hidden, output, flag=0, output_lengths=None):
         embedded = self.embedding(output)
+        embedded = self.embedding_layerNorm(embedded)
         embedded = F.relu(embedded)
         embedded = self.dropout(embedded)
 
