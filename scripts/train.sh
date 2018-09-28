@@ -17,7 +17,6 @@ echo save re
 
 python nmt.py \
     train \
-    --cuda \
     --vocab ${vocab} \
     --train-src ${train_src} \
     --train-tgt ${train_tgt} \
@@ -35,7 +34,6 @@ python nmt.py \
 
 python nmt.py \
     decode \
-    --cuda \
     --beam-size 5 \
     --max-decoding-time-step 100 \
     ${work_dir}/model.bin \

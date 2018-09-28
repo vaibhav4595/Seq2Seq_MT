@@ -10,7 +10,7 @@ Usage:
 
 Options:
     -h --help                               show this screen.
-    --cuda                                  use GPU
+    --                                  use GPU
     --train-src=<file>                      train source file
     --train-tgt=<file>                      train target file
     --dev-src=<file>                        dev source file
@@ -80,10 +80,10 @@ class NMT(object):
         self.decoder = model.DecoderRNN(embed_size=self.embed_size,
                                         hidden_size=self.hidden_size,
                                         output_size=tgt_vocab_size)
-        self.encoder = self.encoder.cuda()
-        self.decoder = self.decoder.cuda() 
+        self.encoder = self.encoder
+        self.decoder = self.decoder 
 
-        self.criterion = torch.nn.CrossEntropyLoss().cuda()
+        self.criterion = torch.nn.CrossEntropyLoss()
 
     def __call__(self, src_sents: List[List[str]], tgt_sents: List[List[str]]) -> torch.Tensor:
         """
@@ -127,7 +127,7 @@ class NMT(object):
         input_lengths = [len(sent) for sent in numb_src_sents]
 
         # Construct a long tensor (seq_len * batch_size)
-        input_tensor = Variable(torch.LongTensor(padded_src_sent).t()).cuda()
+        input_tensor = Variable(torch.LongTensor(padded_src_sent).t())
 
         # Call encoder
         src_encodings, decoder_init_state = self.encoder(input_tensor, input_lengths)
@@ -159,11 +159,11 @@ class NMT(object):
         padded_tgt_sent = [sent + [0]*(max_len - len(sent)) for sent in numb_tgt_sents]
 
         # Get the original sentence lengths
-        input_lengths = torch.cuda.FloatTensor([len(sent) for sent in numb_tgt_sents])
+        input_lengths = torch.FloatTensor([len(sent) for sent in numb_tgt_sents])
 
         # Construct a long tensor (seq_len * batch_size)
-        input_tensor = Variable(torch.cuda.LongTensor(padded_tgt_sent).t())
-        scores = torch.zeros(input_tensor[0].size()).cuda()
+        input_tensor = Variable(torch.LongTensor(padded_tgt_sent).t())
+        scores = torch.zeros(input_tensor[0].size())
         last_hidden = decoder_init_state
 
         #outputs, _ = self.decoder(last_hidden, input_tensor, 1, [len(sent) for sent in numb_tgt_sents])
@@ -180,7 +180,7 @@ class NMT(object):
 
         # Normalize each score by the length of the sentence, add up, normalize by batch size
         # normalizers = torch.FloatTensor(input_lengths)
-        # normalizers = normalizers.cuda()
+        # normalizers = normalizers
         return (scores / input_lengths).mean(), scores.sum()# / normalizers.mean())
 
     def beam_search(self, src_sent: List[str], beam_size: int=5, max_decoding_time_step: int=70) -> List[Hypothesis]:
@@ -211,7 +211,7 @@ class NMT(object):
         #            break
 
         #     word_indices = self.vocab.tgt.words2indices([[previous_word]])
-        #     word_indices = torch.cuda.LongTensor(word_indices)
+        #     word_indices = torch.LongTensor(word_indices)
         #     scores, dec_init_state = self.decoder(dec_init_state, word_indices)
         #     top_scores, score_indices = torch.topk(scores, k=1, dim=2)
         #     top_scores = top_scores[0][0].data.cpu().numpy().tolist()
@@ -230,7 +230,7 @@ class NMT(object):
           return [e.cpu().detach() for e in h]
 
         def to_cuda(h):
-          return [e.cuda().detach() for e in h]
+          return [e.detach() for e in h]
 
         # Beam search decoding
         hypotheses = {str(self.vocab.tgt.word2id['<s>']): (0, to_cpu(dec_init_state))}  # string vs the log likelihood
@@ -244,7 +244,7 @@ class NMT(object):
                     continue
 
                 # Create a tensor for the last word
-                last_word = torch.cuda.LongTensor([[previous_word]])
+                last_word = torch.LongTensor([[previous_word]])
 
                 # Pass through the decoder
                 scores, new_hidden = self.decoder(to_cuda(hidden), last_word)
@@ -381,7 +381,7 @@ def train(args: Dict[str, str]):
     model.encoder.train()
     model.decoder.train()
 
-    # model.cuda() or model = model.cuda() or model = NMT().cuda() # error: model has no attribute cuda
+    # model or model = model or model = NMT() # error: model has no attribute 
 
     num_trial = 0
     train_iter = patience = cum_loss = report_loss = cumulative_tgt_words = report_tgt_words = 0
