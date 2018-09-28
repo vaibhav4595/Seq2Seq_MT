@@ -366,6 +366,8 @@ class NMT(object):
             model: the loaded model
         """
         model = torch.load(model_path)
+        model.encoder.LSTM.flatten_parameters()
+        model.decoder.LSTM.flatten_parameters()
         return model
 
     def save(self, model_path: str):
@@ -443,6 +445,23 @@ def train(args: Dict[str, str]):
     # Define an Adam optimizer
     optim = torch.optim.Adam(list(model.encoder.parameters()) + list(model.decoder.parameters()), lr=lr)
 
+
+    # decay learning rate, and restore from previously best checkpoint
+    lr = lr * float(args['--lr-decay'])
+    print('load previously best model and decay learning rate to %f' % lr, file=sys.stderr)
+
+    # load model
+    model = model.load(model_save_path)
+
+    print('restore parameters of the optimizers', file=sys.stderr)
+    optim = torch.optim.Adam(list(model.encoder.parameters()) + list(model.decoder.parameters()), lr=lr)
+    optim.load_state_dict(torch.load('optim.save'))
+    for state in optim.state.values():
+      for k, v in state.items():
+        if isinstance(v, torch.Tensor):
+          state[k] = v.cuda()
+
+    epoch = 11
     while True:
         epoch += 1
 
@@ -546,7 +565,12 @@ def train(args: Dict[str, str]):
                         model = model.load(model_save_path)
 
                         print('restore parameters of the optimizers', file=sys.stderr)
+                        optim = torch.optim.Adam(list(model.encoder.parameters()) + list(model.decoder.parameters()), lr=lr)
                         optim.load_state_dict(torch.load('optim.save'))
+                        for state in optim.state.values():
+                          for k, v in state.items():
+                            if isinstance(v, torch.Tensor):
+                              state[k] = v.cuda()
 
                         # reset patience
                         patience = 0
