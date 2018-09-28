@@ -28,14 +28,15 @@ class EncoderRNN(nn.Module):
 
     def forward(self, input, input_lengths):
         embedded = self.embedding(input)
-        embedded = self.dropout(embedded)
+        #embedded = self.dropout(embedded)
         embedded = self.embedding_layerNorm(embedded)
         packed = torch.nn.utils.rnn.pack_padded_sequence(embedded, input_lengths)
         output, hidden = self.LSTM(packed, None)
-        hidden_list = list(hidden)
-        for i in range(len(hidden)):
-            hidden_list[i] = self.hidden_layerNorm(hidden_list[i])
-        hidden = tuple(hidden_list)
+
+        #hidden_list = list(hidden)
+        #for i in range(len(hidden)):
+        #    hidden_list[i] = self.hidden_layerNorm(hidden_list[i])
+        #hidden = tuple(hidden_list)
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output)
         if self.bidirectional != True:
             return output, hidden
@@ -66,6 +67,7 @@ class DecoderRNN(nn.Module):
         self.num_layers = num_layers
         self.embedding = nn.Embedding(self.output_size, self.embed_size)
         self.embedding_layerNorm = nn.LayerNorm(self.embed_size)
+        self.hidden_layerNorm = nn.LayerNorm(self.hidden_size)
 
         # Calculate LSTM input size
         input_size = self.embed_size
@@ -84,7 +86,7 @@ class DecoderRNN(nn.Module):
 
     def forward(self, encoder_outputs, hidden, output, flag=0, output_lengths=None):
         embedded = self.embedding(output)
-        embedded = self.embedding_layerNorm(embedded)
+        #embedded = self.embedding_layerNorm(embedded)
         embedded = F.relu(embedded)
         embedded = self.dropout(embedded)
 
