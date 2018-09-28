@@ -69,26 +69,26 @@ from vocab import Vocab, VocabEntry
 Hypothesis = namedtuple('Hypothesis', ['value', 'score'])
 
 
-def init_weights(model):
-    for m in model.children():
-        #print(m, type(m))
-        if type(m) == torch.nn.Linear:
-            torch.nn.init.xavier_uniform_(m.weight)
-            m.bias.data.fill_(0.01)
-            #print(m.weight)
-            #print(m.bias)
-        if type(m) == torch.nn.LSTM:
-            for name, param in m.named_parameters():
-                if 'bias' in name:
-                    # special treatment for forget gate : order is b_ii|b_if|b_ig|b_io
-                    torch.nn.init.constant_(param[len(param)//4:len(param)//2], 1.0)
-                    # bias for rest of the gates, set to zero
-                    torch.nn.init.constant_(param[:len(param)//4], 0.0)
-                    torch.nn.init.constant_(param[len(param)//2:3*len(param)//2], 0.0)
-                    torch.nn.init.constant_(param[3*len(param)//2:], 0.0)
-                elif 'weight' in name:
-                    torch.nn.init.xavier_normal_(param)
-                #print(name, len(param), param)
+#def init_weights(model):
+#    for m in model.children():
+#        #print(m, type(m))
+#        if type(m) == torch.nn.Linear:
+#            torch.nn.init.xavier_uniform_(m.weight)
+#            m.bias.data.fill_(0.01)
+#            #print(m.weight)
+#            #print(m.bias)
+#        if type(m) == torch.nn.LSTM:
+#            for name, param in m.named_parameters():
+#                if 'bias' in name:
+#                    # special treatment for forget gate : order is b_ii|b_if|b_ig|b_io
+#                    torch.nn.init.constant_(param[len(param)//4:len(param)//2], 1.0)
+#                    # bias for rest of the gates, set to zero
+#                    torch.nn.init.constant_(param[:len(param)//4], 0.0)
+#                    torch.nn.init.constant_(param[len(param)//2:3*len(param)//2], 0.0)
+#                    torch.nn.init.constant_(param[3*len(param)//2:], 0.0)
+#                elif 'weight' in name:
+#                    torch.nn.init.xavier_normal_(param)
+#                #print(name, len(param), param)
 
 
 class NMT(object):
@@ -101,7 +101,8 @@ class NMT(object):
                  num_layers,
                  bidirectional,
                  attention_type,
-                 self_attention):
+                 self_attention,
+                 uniform_init):
         super(NMT, self).__init__()
 
         self.embed_size = embed_size
@@ -127,6 +128,10 @@ class NMT(object):
                                         self_attention=self_attention)
         self.encoder = self.encoder.cuda()
         self.decoder = self.decoder.cuda() 
+
+        # Initialize all parameter weights uniformly
+        for param in list(self.encoder.parameters()) + list(self.decoder.parameters()):
+          torch.nn.init.uniform(param, a=-uniform_init, b=uniform_init)
 
         self.criterion = torch.nn.CrossEntropyLoss(reduce=0).cuda()
 
@@ -423,15 +428,12 @@ def train(args: Dict[str, str]):
                 num_layers=int(args['--num-layers']),
                 bidirectional=args['--bidirectional'],
                 attention_type=args['--attention-type'],
-                self_attention=args['--self-attention'])
+                self_attention=args['--self-attention'],
+                uniform_init=float(args['--uniform-init']))
 
     # Set training to true
     model.encoder.train()
     model.decoder.train()
-
-    # initialize the weights
-    model.encoder.apply(init_weights)
-    model.encoder.apply(init_weights)
 
     # model.cuda() or model = model.cuda() or model = NMT().cuda() # error: model has no attribute cuda
 
