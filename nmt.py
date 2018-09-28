@@ -222,7 +222,6 @@ class NMT(object):
         # Normalize each score by the length of the sentence, add up, normalize by batch size
         # normalizers = torch.FloatTensor(input_lengths)
         # normalizers = normalizers.cuda()
-        (scores/(input_lengths - 1))
         return (scores/(input_lengths - 1)).mean(), scores.sum()# / normalizers.mean())
 
     def beam_search(self, src_sent: List[str], beam_size: int=5, max_decoding_time_step: int=70) -> List[Hypothesis]:
@@ -524,6 +523,9 @@ def train(args: Dict[str, str]):
                     print('save currently the best model to [%s]' % model_save_path, file=sys.stderr)
                     model.save(model_save_path)
 
+                    # Save optimizer
+                    torch.save(optim.state_dict(), 'optim.save')
+
                     # You may also save the optimizer's state
                 elif patience < int(args['--patience']):
                     patience += 1
@@ -541,10 +543,10 @@ def train(args: Dict[str, str]):
                         print('load previously best model and decay learning rate to %f' % lr, file=sys.stderr)
 
                         # load model
-                        model_save_path
+                        model = model.load(model_save_path)
 
                         print('restore parameters of the optimizers', file=sys.stderr)
-                        # You may also need to load the state of the optimizer saved before
+                        optim.load_state_dict(torch.load('optim.save'))
 
                         # reset patience
                         patience = 0

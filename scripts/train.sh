@@ -33,7 +33,8 @@ python nmt.py \
     --clip-grad 5.0 \
     --lr-decay 0.5 \
     --num-layers 1 \
-    --attention-type 'concat' 
+    --attention-type 'concat' \
+    --bidirectional
 
 # FOR BIDIRECTIONAL add the flag --bidirectional
 
