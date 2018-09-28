@@ -111,7 +111,7 @@ class DecoderRNN(nn.Module):
           encoder_contexts = attn_weights.bmm(encoder_outputs.transpose(0,1))
 
           # Concate with embedded
-          #rnn_input = torch.cat((rnn_input, encoder_contexts.transpose(0,1)), dim=2)
+          rnn_input = torch.cat((rnn_input, encoder_contexts.transpose(0,1)), dim=2)
 
         elif self.attention_type == 'general':
           # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)
@@ -124,7 +124,7 @@ class DecoderRNN(nn.Module):
           encoder_contexts = attn_weights.bmm(encoder_outputs.transpose(0,1))
 
           # Concate with embedded
-          #rnn_input = torch.cat((rnn_input, encoder_contexts.transpose(0,1)), dim=2)
+          rnn_input = torch.cat((rnn_input, encoder_contexts.transpose(0,1)), dim=2)
 
         elif self.attention_type == 'concat':
           # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)
@@ -137,7 +137,7 @@ class DecoderRNN(nn.Module):
           encoder_contexts = attn_weights.bmm(encoder_outputs.transpose(0,1))
 
           # Concate with embedded
-          #rnn_input = torch.cat((rnn_input, encoder_contexts.transpose(0,1)), dim=2)
+          rnn_input = torch.cat((rnn_input, encoder_contexts.transpose(0,1)), dim=2)
 
 
         """
@@ -157,7 +157,7 @@ class DecoderRNN(nn.Module):
 
         #after the changes rnn_input is the same as embedded
         output, hidden = self.LSTM(rnn_input, hidden)
-        output_final = F.tanh(self.output_linear(torch.cat((hidden, encoder_contexts.transpose(0, 1)), dim=2)))
+        output_final = F.tanh(self.output_linear(torch.cat((hidden[0], encoder_contexts.transpose(0, 1)), dim=2)))
         output_final = self.dropout(output_final)
         output = self.out(output_final)
         #output = F.log_softmax(self.out(hidden[0]), dim=2)
