@@ -68,20 +68,27 @@ class DecoderRNN(nn.Module):
         self.embedding = nn.Embedding(self.output_size, self.embed_size)
         self.embedding_layerNorm = nn.LayerNorm(self.embed_size)
         self.hidden_layerNorm = nn.LayerNorm(self.hidden_size)
+        self.attention_type = attention_type
 
+        self.attention_type = attention_type
         # Calculate LSTM input size
         input_size = self.embed_size
-        if attention_type != 'none':
+        if self.attention_type != 'none':
           input_size += self.hidden_size
 
         if self_attention:
           input_size += self.hidden_size
 
+        if self.attention_type == 'general':
+            self.attention_layer = nn.Linear(self.hidden_size, self.hidden_size)
+
+        if self.attention_type == 'concat':
+            self.attention_layer = nn.Linear(2 * self.hidden_size, self.hidden_size)
+            self.v = nn.Linear(self.hidden_size, 1)
+
         self.LSTM = nn.LSTM(input_size, self.hidden_size, num_layers=self.num_layers, dropout=self.dropout_rate)
         self.dropout = nn.Dropout(self.dropout_rate)
         self.out = nn.Linear(self.hidden_size, self.output_size)
-
-        self.attention_type = attention_type
         self.self_attention = self_attention
 
     def forward(self, encoder_outputs, hidden, output, flag=0, output_lengths=None):
@@ -92,7 +99,7 @@ class DecoderRNN(nn.Module):
 
         rnn_input = embedded
 
-        if self.attention_type != 'none':
+        if self.attention_type == 'dot':
           # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)
           cur_hidden = hidden[0][-1:].transpose(0,1)
           encoder_hiddens = encoder_outputs.transpose(0,1).transpose(1,2)
@@ -103,6 +110,33 @@ class DecoderRNN(nn.Module):
 
           # Concate with embedded
           rnn_input = torch.cat((rnn_input, encoder_contexts.transpose(0,1)), dim=2)
+
+        elif self.attention_type == 'general':
+          # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)
+          encoder_outputs2 = self.attention_layer(encoder_outputs)
+          cur_hidden = hidden[0][-1:].transpose(0,1)
+          encoder_hiddens = encoder_outputs2.transpose(0,1).transpose(1,2)
+          attn_weights = F.softmax(cur_hidden.bmm(encoder_hiddens), dim=2)
+
+          # Determine encoder context, (B x 1 x S) * (B x S x H) = (B x 1 x H)
+          encoder_contexts = attn_weights.bmm(encoder_outputs.transpose(0,1))
+
+          # Concate with embedded
+          rnn_input = torch.cat((rnn_input, encoder_contexts.transpose(0,1)), dim=2)
+
+        elif self.attention_type == 'concat':
+          # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)
+          attention_input  = torch.cat((hidden[0].expand(encoder_outputs.size(0), -1, -1), encoder_outputs), dim=2)
+          attention_outputs = self.v(F.tanh(self.attention_layer(attention_input)))
+          attention_outputs = attention_outputs.transpose(0, 1).transpose(1, 2)
+          attn_weights = F.softmax(attention_outputs, dim=2)
+
+          # Determine encoder context, (B x 1 x S) * (B x S x H) = (B x 1 x H)
+          encoder_contexts = attn_weights.bmm(encoder_outputs.transpose(0,1))
+
+          # Concate with embedded
+          rnn_input = torch.cat((rnn_input, encoder_contexts.transpose(0,1)), dim=2)
+
 
         """
         Self-attention implementation. Uncomment after hitting 27 BLEU, to avoid slowing down training.

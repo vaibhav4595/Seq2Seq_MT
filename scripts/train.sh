@@ -26,14 +26,14 @@ python nmt.py \
     --save-to ${work_dir}/model.bin \
     --valid-niter 2400 \
     --batch-size 64 \
-    --hidden-size 256 \
+    --hidden-size 512 \
     --embed-size 256 \
     --uniform-init 0.1 \
     --dropout 0.2 \
     --clip-grad 5.0 \
     --lr-decay 0.5 \
     --num-layers 1 \
-    --attention-type 'none' 
+    --attention-type 'concat' 
 
 # FOR BIDIRECTIONAL add the flag --bidirectional
 
