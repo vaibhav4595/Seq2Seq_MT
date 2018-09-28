@@ -24,6 +24,7 @@ class EncoderRNN(nn.Module):
         self.LSTM = nn.LSTM(self.embed_size, self.hidden_size, num_layers=self.num_layers, dropout=self.dropout_rate, bidirectional=self.bidirectional)
         #for layer
         self.embedding_layerNorm = nn.LayerNorm(self.embed_size)
+        self.hidden_layerNorm = nn.LayerNorm(self.hidden_size)
 
     def forward(self, input, input_lengths):
         embedded = self.embedding(input)
@@ -31,6 +32,10 @@ class EncoderRNN(nn.Module):
         embedded = self.embedding_layerNorm(embedded)
         packed = torch.nn.utils.rnn.pack_padded_sequence(embedded, input_lengths)
         output, hidden = self.LSTM(packed, None)
+        hidden_list = list(hidden)
+        for i in range(len(hidden)):
+            hidden_list[i] = self.hidden_layerNorm(hidden_list[i])
+        hidden = tuple(hidden_list)
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output)
         if self.bidirectional != True:
             return output, hidden
