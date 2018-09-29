@@ -101,9 +101,14 @@ class DecoderRNN(nn.Module):
 
         rnn_input = embedded
 
+        if self.num_layers > 1:
+          cur_hidden = hidden[0][-1:]
+        else:
+          cur_hidden = hidden[0]
+
         if self.attention_type == 'dot':
           # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)
-          cur_hidden = hidden[0][-1:].transpose(0,1)
+          cur_hidden = cur_hidden[-1:].transpose(0,1)
           encoder_hiddens = encoder_outputs.transpose(0,1).transpose(1,2)
           attn_weights = F.softmax(cur_hidden.bmm(encoder_hiddens), dim=2)
 
@@ -116,7 +121,7 @@ class DecoderRNN(nn.Module):
         elif self.attention_type == 'general':
           # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)
           encoder_outputs2 = self.attention_layer(encoder_outputs)
-          cur_hidden = hidden[0][-1:].transpose(0,1)
+          cur_hidden = cur_hidden[-1:].transpose(0,1)
           encoder_hiddens = encoder_outputs2.transpose(0,1).transpose(1,2)
           attn_weights = F.softmax(cur_hidden.bmm(encoder_hiddens), dim=2)
 
@@ -128,7 +133,7 @@ class DecoderRNN(nn.Module):
 
         elif self.attention_type == 'concat':
           # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)
-          attention_input  = torch.cat((hidden[0].expand(encoder_outputs.size(0), -1, -1), encoder_outputs), dim=2)
+          attention_input  = torch.cat((cur_hidden.expand(encoder_outputs.size(0), -1, -1), encoder_outputs), dim=2)
           attention_outputs = self.v(F.tanh(self.attention_layer(attention_input)))
           attention_outputs = attention_outputs.transpose(0, 1).transpose(1, 2)
           attn_weights = F.softmax(attention_outputs, dim=2)
@@ -157,7 +162,13 @@ class DecoderRNN(nn.Module):
 
         #after the changes rnn_input is the same as embedded
         output, hidden = self.LSTM(rnn_input, hidden)
-        output_final = F.tanh(self.output_linear(torch.cat((hidden[0], encoder_contexts.transpose(0, 1)), dim=2)))
+
+        if self.num_layers > 1:
+          cur_hidden = hidden[0][-1:]
+        else:
+          cur_hidden = hidden[0]
+
+        output_final = F.tanh(self.output_linear(torch.cat((cur_hidden, encoder_contexts.transpose(0, 1)), dim=2)))
         output_final = self.dropout(output_final)
         output = self.out(output_final)
         #output = F.log_softmax(self.out(hidden[0]), dim=2)

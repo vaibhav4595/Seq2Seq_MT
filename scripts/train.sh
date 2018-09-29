@@ -29,11 +29,11 @@ python nmt.py \
     --hidden-size 512 \
     --embed-size 256 \
     --uniform-init 0.1 \
-    --dropout 0.2 \
+    --dropout 0.5 \
     --clip-grad 5.0 \
     --lr-decay 0.5 \
-    --num-layers 1 \
-    --attention-type 'concat' \
+    --num-layers 3 \
+    --attention-type 'general' \
     --bidirectional
 
 # FOR BIDIRECTIONAL add the flag --bidirectional
