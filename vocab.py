@@ -117,6 +117,9 @@ class VocabEntry(object):
 
     def bpe2indices(self, sents):
         def __word2indices(word):
+          if word in self.word2id:
+            return [self.word2id[word]]
+
           # Split into characters
           tokens = list(word)
 
@@ -151,7 +154,7 @@ class VocabEntry(object):
             tokens = new_tokens
 
           # Get word ids
-          return [self.word2id[t] for t in tokens]
+          return [self.word2id.get(t, self.unk_id) for t in tokens]
                 
         def __sent2indices(sent):
           indices = []
@@ -224,7 +227,7 @@ class VocabEntry(object):
         for sent in corpus:
           for word in sent:
             # Now we have to consider all sets of letter counts from 1 to the length of the sentence
-            for i in range(1, len(word)):
+            for i in range(1, len(word)+1):
               # Iterate over the possible sentence starts
               for s in range(0, len(word)-i+1):
                 # Update the freq of the token
@@ -232,19 +235,23 @@ class VocabEntry(object):
         
         print("Built vocab frequencies")
 
+        # Add word tokens
+        word_freq = Counter(chain(*corpus))
+        word_tokens = sorted(word_freq.keys(), key=word_freq.get, reverse=True)[:2000]
+
         # Initialize the tokens to be all unigrams
         tokens = sorted([w for w in token_freq.keys() if len(w) == 1], key=token_freq.get, reverse=True)
         token_set = set(tokens)
 
         # Keep token pairs
-        token_pairs = set([t1+t2 for t1 in tokens for t2 in tokens])
+        token_pairs = set([t1+t2 for t1 in tokens for t2 in tokens if token_freq.get(t1+t2,0) >= 2])
 
         # Keep unselected words
         sorted_tokens = [w for w in sorted(token_freq.keys(), key=token_freq.get, reverse=True) if w not in token_set][:size]
 
         # Iteratively, expand by adding the combination of tokens that is the most frequent. 
         # Repeat this until we hit the desired vocab size, or below the frequency.
-        while len(tokens) < size:
+        while len(tokens) < size-2000:
           if len(tokens) % 500 == 0:
             print("Vocabulary size %d reached" % len(tokens))
 
@@ -270,8 +277,10 @@ class VocabEntry(object):
 
           # Add to pairs
           for t in tokens:
-            token_pairs.add(t+next_token)
-            token_pairs.add(next_token+t)
+            if token_freq.get(t+next_token,0) >= 2:
+              token_pairs.add(t+next_token)
+            if token_freq.get(next_token+t,0) >= 2:
+              token_pairs.add(next_token+t)
 
         print(f'number of token types: {len(tokens)}, number of token types w/ frequency >= {freq_cutoff}: {len(tokens)}')
 
@@ -279,7 +288,7 @@ class VocabEntry(object):
         vocab_entry.add(' ')
 
         # Add each of the tokens to the vocab
-        for token in tokens:
+        for token in word_tokens + tokens:
             vocab_entry.add(token)
 
         return vocab_entry

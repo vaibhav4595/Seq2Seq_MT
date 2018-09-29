@@ -169,6 +169,12 @@ class NMT(object):
         # Numberize the source sentences
         numb_src_sents = self.vocab.src.numberize(src_sents)
 
+        # Sort from longest to smallest
+        sorted_indices = sorted(range(len(src_sents)), key=lambda i: len(numb_src_sents[i]), reverse=True)
+
+        # Sort numberized sentences
+        numb_src_sents = [numb_src_sents[i] for i in sorted_indices]
+
         # Pad each sentence to the maximum length
         max_len = len(numb_src_sents[0])
         padded_src_sent = [sent + [0]*(max_len - len(sent)) for sent in numb_src_sents]
@@ -180,6 +186,11 @@ class NMT(object):
         input_tensor = Variable(torch.LongTensor(padded_src_sent).t()).cuda()
         # Call encoder
         src_encodings, decoder_init_state = self.encoder(input_tensor, input_lengths)
+
+        # Unsort
+        unsorted_indices = sorted(range(len(sorted_indices)), key=lambda i: sorted_indices[i])
+        src_encodings = src_encodings[:,unsorted_indices]
+        decoder_init_state = [e[:,unsorted_indices] for e in decoder_init_state]
 
         return src_encodings, decoder_init_state
 
@@ -514,7 +525,7 @@ def train(args: Dict[str, str]):
                 print('begin validation ...', file=sys.stderr)
 
                 # compute dev. ppl and bleu
-                dev_ppl = model.evaluate_ppl(dev_data, batch_size=128)   # dev batch size can be a bit larger
+                dev_ppl = model.evaluate_ppl(dev_data, batch_size=64)   # dev batch size can be a bit larger
                 valid_metric = -dev_ppl
 
                 print('validation: iter %d, dev. ppl %f' % (train_iter, dev_ppl), file=sys.stderr)
