@@ -126,8 +126,10 @@ class NMT(object):
                                         num_layers=num_layers,
                                         attention_type=attention_type,
                                         self_attention=self_attention)
+        self.length_norm = model.LengthNorm()
         self.encoder = self.encoder.cuda()
-        self.decoder = self.decoder.cuda() 
+        self.decoder = self.decoder.cuda()
+        self.length_norm.cuda() 
 
         # Initialize all parameter weights uniformly
         for param in list(self.encoder.parameters()) + list(self.decoder.parameters()):
@@ -149,8 +151,9 @@ class NMT(object):
                 log-likelihood of generating the gold-standard target sentence for 
                 each example in the input batch
         """
+        send_lengths = [len(each) for each in src_sents]
         src_encodings, decoder_init_state = self.encode(src_sents)
-        scores = self.decode(src_encodings, decoder_init_state, tgt_sents)
+        scores = self.decode(src_encodings, decoder_init_state, tgt_sents, send_lengths)
 
         return scores
 
@@ -194,7 +197,7 @@ class NMT(object):
 
         return src_encodings, decoder_init_state
 
-    def decode(self, src_encodings: torch.Tensor, decoder_init_state: Any, tgt_sents: List[List[str]]) -> torch.Tensor:
+    def decode(self, src_encodings: torch.Tensor, decoder_init_state: Any, tgt_sents: List[List[str]], source_lengths) -> torch.Tensor:
         """
         Given source encodings, compute the log-likelihood of predicting the gold-standard target
         sentence tokens
@@ -213,13 +216,17 @@ class NMT(object):
 
         # Numberize the target sentences
         numb_tgt_sents = self.vocab.tgt.numberize(tgt_sents)
-
+        sent_lens = [len(each) for each in numb_tgt_sents]
         # Pad each sentence to the maximum length
-        max_len = max([len(sent) for sent in numb_tgt_sents])
+        max_len = max(sent_lens)
         padded_tgt_sent = [sent + [0]*(max_len - len(sent)) for sent in numb_tgt_sents]
 
         # Get the original sentence lengths
         input_lengths = torch.cuda.FloatTensor([len(sent) for sent in numb_tgt_sents])
+
+        source_lengths = torch.cuda.FloatTensor(source_lengths).unsqueeze(1)
+        sent_lens = torch.cuda.FloatTensor(sent_lens).unsqueeze(1)
+        normed = -torch.log(self.length_norm(torch.cat((source_lengths, sent_lens), dim=1)).squeeze(1))
 
         # Construct a long tensor (seq_len * batch_size)
         input_tensor = Variable(torch.cuda.LongTensor(padded_tgt_sent).t())
@@ -238,7 +245,7 @@ class NMT(object):
         # Normalize each score by the length of the sentence, add up, normalize by batch size
         # normalizers = torch.FloatTensor(input_lengths)
         # normalizers = normalizers.cuda()
-        return (scores/(input_lengths - 1)).mean(), scores.sum()# / normalizers.mean())
+        return (scores + normed).mean(), scores.sum()# / normalizers.mean())
 
     def beam_search(self, src_sent: List[str], beam_size: int=5, max_decoding_time_step: int=70) -> List[Hypothesis]:
         """
@@ -359,7 +366,7 @@ class NMT(object):
         for src_sents, tgt_sents in batch_iter(dev_data, batch_size):
             #loss = -self.model(src_sents, tgt_sents).sum()
             src_encodings, decoder_init_state = self.encode(src_sents)
-            loss = self.decode(src_encodings, decoder_init_state, tgt_sents)[1]
+            loss = self.decode(src_encodings, decoder_init_state, tgt_sents, [len(each) for each in src_sents])[1]
 
             cum_loss += loss.item()
             tgt_word_num_to_predict = sum(len(s[1:]) for s in tgt_sents)  # omitting the leading `<s>`

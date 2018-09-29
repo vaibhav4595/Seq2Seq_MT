@@ -49,6 +49,18 @@ class EncoderRNN(nn.Module):
         # Changes for Bidi to work
             return output, (hidden_final, cell_final)
 
+class LengthNorm(nn.Module):
+    def __init__(self):
+        super(LengthNorm, self).__init__()
+        self.length_normalizer = nn.Sequential(
+                                 nn.Linear(2, 4),
+                                 nn.Sigmoid(),
+                                 nn.Linear(4, 1),
+                                 nn.Sigmoid())
+
+    def forward(self, listers):
+        return self.length_normalizer(listers)
+
 class DecoderRNN(nn.Module):
     def __init__(self, 
                  embed_size, 
