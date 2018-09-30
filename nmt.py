@@ -226,7 +226,7 @@ class NMT(object):
 
         source_lengths = torch.cuda.FloatTensor(source_lengths).unsqueeze(1)
         sent_lens = torch.cuda.FloatTensor(sent_lens).unsqueeze(1)
-        normed = -torch.log(self.length_norm(torch.cat((source_lengths, sent_lens), dim=1)).squeeze(1))
+        normed = self.length_norm(torch.cat((source_lengths, sent_lens), dim=1)).squeeze(1)
 
         # Construct a long tensor (seq_len * batch_size)
         input_tensor = Variable(torch.cuda.LongTensor(padded_tgt_sent).t())
@@ -245,7 +245,7 @@ class NMT(object):
         # Normalize each score by the length of the sentence, add up, normalize by batch size
         # normalizers = torch.FloatTensor(input_lengths)
         # normalizers = normalizers.cuda()
-        return (scores + normed).mean(), scores.sum()# / normalizers.mean())
+        return (scores * normed).mean(), scores.sum()# / normalizers.mean())
 
     def beam_search(self, src_sent: List[str], beam_size: int=5, max_decoding_time_step: int=70) -> List[Hypothesis]:
         """
@@ -391,6 +391,7 @@ class NMT(object):
         model = torch.load(model_path)
         model.encoder.LSTM.flatten_parameters()
         model.decoder.LSTM.flatten_parameters()
+
         return model
 
     def save(self, model_path: str):
@@ -452,6 +453,7 @@ def train(args: Dict[str, str]):
     # Set training to true
     model.encoder.train()
     model.decoder.train()
+    model.length_norm.train()
 
     # model.cuda() or model = model.cuda() or model = NMT().cuda() # error: model has no attribute cuda
 
@@ -463,7 +465,7 @@ def train(args: Dict[str, str]):
     print('begin Maximum Likelihood training')
 
     # Define an Adam optimizer
-    optim = torch.optim.Adam(list(model.encoder.parameters()) + list(model.decoder.parameters()), lr=lr)
+    optim = torch.optim.Adam(list(model.encoder.parameters()) + list(model.decoder.parameters()) + list(model.length_norm.parameters()), lr=lr)
 
     while True:
         epoch += 1
@@ -568,7 +570,7 @@ def train(args: Dict[str, str]):
                         model = model.load(model_save_path)
 
                         print('restore parameters of the optimizers', file=sys.stderr)
-                        optim = torch.optim.Adam(list(model.encoder.parameters()) + list(model.decoder.parameters()), lr=lr)
+                        optim = torch.optim.Adam(list(model.encoder.parameters()) + list(model.decoder.parameters()) + list(model.length_norm.parameters()), lr=lr)
                         optim.load_state_dict(torch.load('optim.save'))
                         for state in optim.state.values():
                           for k, v in state.items():
@@ -616,6 +618,7 @@ def decode(args: Dict[str, str]):
     # Set models to eval (disables dropout)
     model.encoder.eval()
     model.decoder.eval()
+    model.length_norm.eval()
 
     hypotheses = beam_search(model, test_data_src,
                              beam_size=int(args['--beam-size']),
@@ -635,6 +638,7 @@ def decode(args: Dict[str, str]):
     # Back to train (not really necessary for now)
     model.encoder.train()
     model.decoder.train()
+    model.length_norm.train()
 
 
 def main():
