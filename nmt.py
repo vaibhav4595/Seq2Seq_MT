@@ -231,9 +231,10 @@ class NMT(object):
         #return self.criterion(outputs[:-1].view(-1, outputs.size(2)), input_tensor[1:].contiguous().view(-1))
         for t in range(1,max_len):
           # Get output from the decoder
-          output, last_hidden = self.decoder(src_encodings, last_hidden, input_tensor[t-1].unsqueeze(0))
+          output, last_hidden = self.decoder(src_encodings, last_hidden, input_tensor[t-1].unsqueeze(0), decoder_outputs=self.decoder.embedding(input_tensor[:t]))
           # Compute scores and add them
           #scores += self.criterion(output.squeeze(0), input_tensor[t]) * (input_lengths > t).float()
+
           scores += self.criterion(output.squeeze(0), input_tensor[t]) * (input_lengths > t).float()
         # Normalize each score by the length of the sentence, add up, normalize by batch size
         # normalizers = torch.FloatTensor(input_lengths)
@@ -297,14 +298,15 @@ class NMT(object):
             for hyp,(score,hidden) in hypotheses.items():
                 previous_word = int(hyp.split()[-1])
                 if previous_word == self.vocab.tgt.word2id['</s>']:
-                    new_hypotheses[hyp] = (score,None)
+                    new_hypotheses[hyp] = (score,None,None)
                     continue
 
                 # Create a tensor for the last word
                 last_word = torch.cuda.LongTensor([[previous_word]])
 
                 # Pass through the decoder
-                scores, new_hidden = self.decoder(src, to_cuda(hidden), last_word)
+                all_outputs = torch.cuda.LongTensor([[int(e) for e in hyp.split()]])
+                scores, new_hidden = self.decoder(src, to_cuda(hidden), last_word, decoder_outputs=self.decoder.embedding(all_outputs))
                 new_hidden = to_cpu(new_hidden)
                 scores = F.log_softmax(scores, dim=2)
                 top_scores, score_indices = torch.topk(scores, k=beam_size+1, dim=2)
@@ -322,7 +324,7 @@ class NMT(object):
 
                   word = str(word_index)
                   new_score = score + top_scores[0,0,i].item()
-                  new_hypotheses[hyp + " " + word] = (new_score, new_hidden)
+                  new_hypotheses[hyp + " " + word] = (new_score, new_hidden, all_decoder_hiddens)
 
        	    # Prune the hypotheses for the next step
             hypotheses = dict(sorted(new_hypotheses.items(), key=lambda t: t[1][0]/len(t[0].split()), reverse=True)[:beam_size])

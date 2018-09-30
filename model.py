@@ -81,6 +81,9 @@ class DecoderRNN(nn.Module):
 
         if self.attention_type == 'general':
             self.attention_layer = nn.Linear(self.hidden_size, self.hidden_size)
+            if self_attention:
+              self.self_attention_layer = nn.Linear(self.embed_size, self.hidden_size)
+             
 
         if self.attention_type == 'concat':
             self.attention_layer = nn.Linear(2 * self.hidden_size, self.hidden_size)
@@ -93,7 +96,7 @@ class DecoderRNN(nn.Module):
         self.output_linear = nn.Linear(self.hidden_size * 2, self.hidden_size)
         self.self_attention = self_attention
 
-    def forward(self, encoder_outputs, hidden, output, flag=0, output_lengths=None):
+    def forward(self, encoder_outputs, hidden, output, flag=0, output_lengths=None, decoder_outputs=None):
         embedded = self.embedding(output)
         #embedded = self.embedding_layerNorm(embedded)
         #embedded = F.relu(embedded)
@@ -145,20 +148,31 @@ class DecoderRNN(nn.Module):
           rnn_input = torch.cat((rnn_input, encoder_contexts.transpose(0,1)), dim=2)
 
 
-        """
-        Self-attention implementation. Uncomment after hitting 27 BLEU, to avoid slowing down training.
-        Expects decoder_outputs to be passed in.
+        #Self-attention implementation. Uncomment after hitting 27 BLEU, to avoid slowing down training.
+        #Expects decoder_outputs to be passed in.
 
         if self.self_attention:
-          # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)
-          decoder_hiddens = decoder_outputs.transpose(0,1).transpose(1,2)
-          dec_attn_weights = F.softmax(cur_hidden.bmm(decoder_hiddens), dim=2)
+          if self.attention_type == 'dot':
+            # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)
+            decoder_hiddens = decoder_outputs.transpose(0,1).transpose(1,2)
+            dec_attn_weights = F.softmax(cur_hidden.bmm(decoder_hiddens), dim=2)
 
-          # Determine decoder context, (B x 1 x S) * (B x S x H) = (B x 1 x H)
-          decoder_contexts = dec_attn_weights.bmm(decoder_outputs.transpose(0,1))
+            # Determine decoder context, (B x 1 x S) * (B x S x H) = (B x 1 x H)
+            decoder_contexts = dec_attn_weights.bmm(decoder_outputs.transpose(0,1))
 
-          rnn_input = torch.cat((rnn_input, decoder_contexts))
-        """
+            rnn_input = torch.cat((rnn_input, decoder_contexts))
+          elif self.attention_type == 'general':
+            # Multiply (B x 1 x H) * (B x H x S) = (B x 1 x S)
+            decoder_outputs2 = self.self_attention_layer(decoder_outputs)
+            cur_hidden = cur_hidden[-1:].transpose(0,1)
+            decoder_hiddens = decoder_outputs2.transpose(0,1).transpose(1,2)
+            attn_weights = F.softmax(cur_hidden.bmm(decoder_hiddens), dim=2)
+
+            # Determine encoder context, (B x 1 x S) * (B x S x H) = (B x 1 x H)
+            decoder_contexts = attn_weights.bmm(decoder_outputs.transpose(0,1))
+
+            # Concate with embedded
+            rnn_input = torch.cat((rnn_input, decoder_contexts.transpose(0,1)), dim=2)
 
         #after the changes rnn_input is the same as embedded
         output, hidden = self.LSTM(rnn_input, hidden)
