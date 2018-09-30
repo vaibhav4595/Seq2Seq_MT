@@ -129,7 +129,7 @@ class NMT(object):
         self.length_norm = model.LengthNorm()
         self.encoder = self.encoder.cuda()
         self.decoder = self.decoder.cuda()
-        self.length_norm.cuda() 
+        self.length_norm = self.length_norm.cuda() 
 
         # Initialize all parameter weights uniformly
         for param in list(self.encoder.parameters()) + list(self.decoder.parameters()):
@@ -355,6 +355,7 @@ class NMT(object):
         # Set model to eval
         self.encoder.eval()
         self.decoder.eval()
+        self.length_norm.eval()
 
         cum_loss = 0.
         cum_tgt_words = 0.
@@ -377,6 +378,7 @@ class NMT(object):
         # Set model back to train
         self.encoder.train()
         self.decoder.train()
+        self.length_norm.train()
 
         return ppl
 
