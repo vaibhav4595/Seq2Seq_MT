@@ -1,4 +1,4 @@
-wget https://github.com/neulab/compare-mt/blob/master/compare-mt.py
+wget https://raw.githubusercontent.com/neulab/compare-mt/master/compare-mt.py
 python compare-mt.py data/test.de-en.en decode.txt > mt_single_results.txt
 python compare-mt.py data/test.de-en.en decode_512_1layer_bi.txt decode_512_3layer_bi_general.txt > compare_new.txt
 
